@@ -77,10 +77,10 @@ export class MockTestRunner {
         success: false,
         duration,
         details: 'Test failed',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
 
-      console.log(`❌ ${testName} (${duration}ms): ${error.message}`);
+      console.log(`❌ ${testName} (${duration}ms): ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -100,7 +100,7 @@ export class MockTestRunner {
       style: LogoStyle.FUTURISTIC,
       colors: ['#FF0000', '#00FF00']
     });
-    if (!prompt2.includes('color') && !prompt2.includes('FF0000')) {
+    if (!prompt2.includes('color') || !prompt2.includes('FF0000')) {
       console.warn('Color information might not be properly included in prompt');
     }
 
@@ -275,14 +275,14 @@ export class MockTestRunner {
       // This is expected to fail, but shouldn't crash the service
     }
 
-    // Test invalid enum values (should handle gracefully)
+    // Test with undefined style (valid TypeScript, tests graceful handling)
     const invalidStylePrompt = this.promptGenerator.generatePrompt({
       tokenName: 'TestToken',
       theme: 'crypto',
-      style: 'invalid-style' as any
+      style: undefined
     });
     if (!invalidStylePrompt) {
-      throw new Error('Failed to handle invalid style gracefully');
+      throw new Error('Failed to handle undefined style gracefully');
     }
 
     console.log('     ✓ Long token name handling');
