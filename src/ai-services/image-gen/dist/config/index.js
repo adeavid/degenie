@@ -15,31 +15,41 @@ exports.config = {
     openai: {
         apiKey: process.env.OPENAI_API_KEY || '',
         model: process.env.OPENAI_MODEL || 'dall-e-3',
-        maxRetries: parseInt(process.env.OPENAI_MAX_RETRIES || '3'),
-        timeout: parseInt(process.env.OPENAI_TIMEOUT || '60000'),
+        maxRetries: Math.max(1, parseInt(process.env.OPENAI_MAX_RETRIES || '3') || 3),
+        timeout: Math.max(1000, parseInt(process.env.OPENAI_TIMEOUT || '60000') || 60000),
     },
     stabilityAI: {
         apiKey: process.env.STABILITY_API_KEY || '',
         model: process.env.STABILITY_MODEL || 'stable-diffusion-xl-1024-v1-0',
-        maxRetries: parseInt(process.env.STABILITY_MAX_RETRIES || '3'),
-        timeout: parseInt(process.env.STABILITY_TIMEOUT || '120000'),
+        maxRetries: Math.max(1, parseInt(process.env.STABILITY_MAX_RETRIES || '3') || 3),
+        timeout: Math.max(1000, parseInt(process.env.STABILITY_TIMEOUT || '120000') || 120000),
     },
     general: {
-        defaultProvider: process.env.DEFAULT_PROVIDER || types_1.AIProvider.OPENAI_DALLE,
-        fallbackProvider: process.env.FALLBACK_PROVIDER || types_1.AIProvider.STABILITY_AI,
+        defaultProvider: Object.values(types_1.AIProvider).includes(process.env.DEFAULT_PROVIDER)
+            ? process.env.DEFAULT_PROVIDER
+            : types_1.AIProvider.OPENAI_DALLE,
+        fallbackProvider: Object.values(types_1.AIProvider).includes(process.env.FALLBACK_PROVIDER)
+            ? process.env.FALLBACK_PROVIDER
+            : types_1.AIProvider.STABILITY_AI,
         outputPath: process.env.OUTPUT_PATH || './generated-logos',
         enableLocalStorage: process.env.ENABLE_LOCAL_STORAGE === 'true',
         enablePromptEnhancement: process.env.ENABLE_PROMPT_ENHANCEMENT === 'true',
     },
     image: {
-        defaultSize: process.env.DEFAULT_SIZE || types_1.ImageSize.LARGE,
-        defaultFormat: process.env.DEFAULT_FORMAT || types_1.ImageFormat.PNG,
-        defaultStyle: process.env.DEFAULT_STYLE || types_1.LogoStyle.MODERN,
+        defaultSize: Object.values(types_1.ImageSize).includes(process.env.DEFAULT_SIZE)
+            ? process.env.DEFAULT_SIZE
+            : types_1.ImageSize.LARGE,
+        defaultFormat: Object.values(types_1.ImageFormat).includes(process.env.DEFAULT_FORMAT)
+            ? process.env.DEFAULT_FORMAT
+            : types_1.ImageFormat.PNG,
+        defaultStyle: Object.values(types_1.LogoStyle).includes(process.env.DEFAULT_STYLE)
+            ? process.env.DEFAULT_STYLE
+            : types_1.LogoStyle.MODERN,
         quality: process.env.QUALITY || 'hd',
     },
     rateLimiting: {
-        maxRequestsPerMinute: parseInt(process.env.MAX_REQUESTS_PER_MINUTE || '10'),
-        maxRequestsPerHour: parseInt(process.env.MAX_REQUESTS_PER_HOUR || '100'),
+        maxRequestsPerMinute: Math.max(1, parseInt(process.env.MAX_REQUESTS_PER_MINUTE || '10') || 10),
+        maxRequestsPerHour: Math.max(1, parseInt(process.env.MAX_REQUESTS_PER_HOUR || '100') || 100),
     },
     logging: {
         level: process.env.LOG_LEVEL || 'info',
@@ -56,6 +66,30 @@ function validateConfig() {
     }
     if (!exports.config.openai.apiKey && !exports.config.stabilityAI.apiKey) {
         errors.push('At least one AI provider API key must be configured');
+    }
+    // Validate numeric values
+    if (exports.config.openai.maxRetries < 1 || exports.config.openai.maxRetries > 10) {
+        errors.push('OpenAI max retries must be between 1 and 10');
+    }
+    if (exports.config.stabilityAI.maxRetries < 1 || exports.config.stabilityAI.maxRetries > 10) {
+        errors.push('Stability AI max retries must be between 1 and 10');
+    }
+    if (exports.config.openai.timeout < 1000) {
+        errors.push('OpenAI timeout must be at least 1000ms');
+    }
+    if (exports.config.stabilityAI.timeout < 1000) {
+        errors.push('Stability AI timeout must be at least 1000ms');
+    }
+    // Validate rate limiting
+    if (exports.config.rateLimiting.maxRequestsPerMinute < 1) {
+        errors.push('Max requests per minute must be at least 1');
+    }
+    if (exports.config.rateLimiting.maxRequestsPerHour < exports.config.rateLimiting.maxRequestsPerMinute) {
+        errors.push('Max requests per hour must be greater than max requests per minute');
+    }
+    // Validate provider configuration
+    if (exports.config.general.defaultProvider === exports.config.general.fallbackProvider) {
+        errors.push('Default and fallback providers must be different');
     }
     return {
         isValid: errors.length === 0,

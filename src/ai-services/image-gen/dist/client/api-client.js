@@ -12,7 +12,7 @@ exports.createApiClient = createApiClient;
 const axios_1 = __importDefault(require("axios"));
 class LogoGenerationApiClient {
     constructor(config = {}) {
-        const { baseUrl = 'http://localhost:3001', timeout = 120000, // 2 minutes for AI generation
+        const { baseUrl = process.env.AI_LOGO_API_BASE_URL || 'http://localhost:3001', timeout = 120000, // 2 minutes for AI generation
         apiKey, retries = 3, } = config;
         this.retries = retries;
         this.client = axios_1.default.create({
@@ -27,7 +27,9 @@ class LogoGenerationApiClient {
         this.client.interceptors.response.use((response) => response, (error) => {
             if (error.response) {
                 // Server responded with error status
-                throw new Error(`API Error (${error.response.status}): ${error.response.data?.error || error.message}`);
+                throw new Error(`API Error (${error.response.status}): ${typeof error.response.data === 'string'
+                    ? error.response.data
+                    : error.response.data?.error || error.message}`);
             }
             else if (error.request) {
                 // Request made but no response
@@ -96,7 +98,7 @@ class LogoGenerationApiClient {
         const request = {
             tokenName,
             theme,
-            style: style,
+            style,
             variations: 1,
         };
         const result = await this.generateLogo(request);
@@ -178,10 +180,14 @@ class LogoGenerationApiClient {
                 const response = await this.client.request(config);
                 return response;
             }
-            catch (error) {
+            catch (err) {
+                const error = err;
                 lastError = error;
-                // Don't retry on client errors (4xx) except for rate limiting (429)
-                if (error.response?.status >= 400 && error.response?.status < 500 && error.response?.status !== 429) {
+                // Abort retries on non-retryable client errors
+                if (error.response &&
+                    error.response.status >= 400 &&
+                    error.response.status < 500 &&
+                    error.response.status !== 429) {
                     throw error;
                 }
                 // Wait before retry (exponential backoff)

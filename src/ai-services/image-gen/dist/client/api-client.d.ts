@@ -2,7 +2,7 @@
  * DeGenie Logo Generation API Client
  * TypeScript client for interacting with the logo generation API
  */
-import { LogoRequest, LogoResponse, AIProvider } from '../types';
+import { LogoRequest, LogoResponse, AIProvider, LogoStyle } from '../types';
 export interface ApiClientConfig {
     baseUrl?: string;
     timeout?: number;
@@ -13,16 +13,15 @@ export interface GenerationRequest extends LogoRequest {
     variations?: number;
     provider?: AIProvider;
 }
-export interface ApiResponse<T> {
-    success: boolean;
-    data?: T;
-    error?: string;
-    code?: string;
-}
 export interface ThemeSuggestionsResponse {
     tokenName: string;
     suggestions: string[];
     count: number;
+}
+export interface VariationsResponse {
+    variations: LogoResponse[];
+    count: number;
+    successCount: number;
 }
 export interface ServiceInfoResponse {
     service: string;
@@ -40,11 +39,7 @@ export declare class LogoGenerationApiClient {
     /**
      * Generate a logo or multiple variations
      */
-    generateLogo(request: GenerationRequest): Promise<LogoResponse | {
-        variations: LogoResponse[];
-        count: number;
-        successCount: number;
-    }>;
+    generateLogo(request: GenerationRequest): Promise<LogoResponse | VariationsResponse>;
     /**
      * Get theme suggestions for a token name
      */
@@ -84,7 +79,7 @@ export declare class LogoGenerationApiClient {
     /**
      * Convenience method: Generate a simple logo
      */
-    generateSimpleLogo(tokenName: string, theme?: string, style?: string): Promise<LogoResponse>;
+    generateSimpleLogo(tokenName: string, theme?: string, style?: LogoStyle): Promise<LogoResponse>;
     /**
      * Convenience method: Generate multiple logo variations
      */

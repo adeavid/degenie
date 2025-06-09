@@ -81,19 +81,16 @@ export class LogoGenerator {
     }
 
     // Generate optimized prompt
+    const promptOptions = {
+      tokenName: request.tokenName,
+      theme: request.theme,
+      style: request.style,
+      colors: request.colors
+    };
+
     const prompt = config.general.enablePromptEnhancement
-      ? this.promptGenerator.generateEnhancedPrompt(
-          request.tokenName,
-          request.theme,
-          request.style,
-          request.colors
-        )
-      : this.promptGenerator.generatePrompt(
-          request.tokenName,
-          request.theme,
-          request.style,
-          request.colors
-        );
+      ? this.promptGenerator.generateEnhancedPrompt(promptOptions)
+      : this.promptGenerator.generatePrompt(promptOptions);
 
     console.log(`📝 Generated prompt: ${prompt}`);
 
@@ -184,7 +181,11 @@ export class LogoGenerator {
     // Validate colors if provided
     if (request.colors) {
       for (const color of request.colors) {
-        const isValidColor = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color) || // Hex colors\n                            /^rgb\\(\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*\\)$/.test(color) || // RGB\n                            /^rgba\\(\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*[\\d.]+\\s*\\)$/.test(color) || // RGBA\n                            /^[a-zA-Z]+$/.test(color); // Named colors\n        if (!isValidColor) {
+        const isValidColor = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color) || // Hex colors
+                            /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/.test(color) || // RGB
+                            /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)$/.test(color) || // RGBA
+                            /^[a-zA-Z]+$/.test(color); // Named colors
+        if (!isValidColor) {
           warnings.push(`Color '${color}' may not be recognized. Use hex codes (#RRGGBB) or color names.`);
         }
       }
@@ -292,7 +293,9 @@ export class LogoGenerator {
 
       // Small delay between generations to respect rate limits
       if (i < count - 1) {
-        const provider = result.metadata.provider;\n        const delay = provider === AIProvider.STABILITY_AI ? 10000 : 6000; // Based on provider rate limits\n        await new Promise(resolve => setTimeout(resolve, delay));
+        const provider = result.metadata.provider;
+        const delay = provider === AIProvider.STABILITY_AI ? 10000 : 6000; // Based on provider rate limits
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
 

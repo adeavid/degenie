@@ -5,6 +5,13 @@
 
 import { LogoStyle, PromptTemplate } from '../types';
 
+export interface PromptOptions {
+  tokenName: string;
+  theme?: string;
+  style?: LogoStyle;
+  colors?: string[];
+}
+
 export class PromptGenerator {
   private template: PromptTemplate = {
     base: "Create a professional logo for a cryptocurrency token named '{tokenName}'",
@@ -44,7 +51,30 @@ export class PromptGenerator {
     ]
   };
 
-  generatePrompt(tokenName: string, theme?: string, style?: LogoStyle, colors?: string[]): string {
+  generatePrompt(options: PromptOptions): string {
+    const { tokenName, theme, style, colors } = options;
+    
+    // Validate token name first
+    const validation = this.validateTokenName(tokenName);
+    if (!validation.isValid) {
+      throw new Error(`Invalid token name: ${validation.suggestion}`);
+    }
+
+    // Validate theme if provided
+    if (theme && !this.template.themeModifiers[theme.toLowerCase()]) {
+      console.warn(`Unknown theme '${theme}', continuing without theme modifier`);
+    }
+
+    // Validate style if provided
+    if (style && !this.template.styleModifiers[style]) {
+      console.warn(`Unknown style '${style}', continuing without style modifier`);
+    }
+
+    // Validate colors if provided
+    if (colors && (!Array.isArray(colors) || colors.some(color => typeof color !== 'string'))) {
+      throw new Error('Colors must be an array of strings');
+    }
+
     let prompt = this.template.base.replace('{tokenName}', tokenName);
 
     // Add style modifier
@@ -73,8 +103,8 @@ export class PromptGenerator {
     return prompt;
   }
 
-  generateEnhancedPrompt(tokenName: string, theme?: string, style?: LogoStyle, colors?: string[]): string {
-    const basePrompt = this.generatePrompt(tokenName, theme, style, colors);
+  generateEnhancedPrompt(options: PromptOptions): string {
+    const basePrompt = this.generatePrompt(options);
     
     // Add advanced prompt engineering techniques
     const enhancedElements = [

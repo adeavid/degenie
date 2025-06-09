@@ -33,7 +33,6 @@ var config_1 = require("./config");
 Object.defineProperty(exports, "config", { enumerable: true, get: function () { return config_1.config; } });
 Object.defineProperty(exports, "validateConfig", { enumerable: true, get: function () { return config_1.validateConfig; } });
 __exportStar(require("./types"), exports);
-// Re-export for convenience
 const logo_generator_2 = require("./services/logo-generator");
 const config_2 = require("./config");
 /**

@@ -31,7 +31,7 @@ class LogoGenerator {
             }
         }
         catch (error) {
-            console.warn('⚠️ OpenAI client initialization failed:', error);
+            console.warn('⚠️ OpenAI client initialization failed:', error instanceof Error ? error.message : String(error));
         }
         try {
             if (config_1.config.stabilityAI.apiKey) {
@@ -40,7 +40,7 @@ class LogoGenerator {
             }
         }
         catch (error) {
-            console.warn('⚠️ Stability AI client initialization failed:', error);
+            console.warn('⚠️ Stability AI client initialization failed:', error instanceof Error ? error.message : String(error));
         }
         if (!this.openaiClient && !this.stabilityClient) {
             throw new Error('At least one AI provider must be properly configured');
@@ -68,9 +68,15 @@ class LogoGenerator {
             };
         }
         // Generate optimized prompt
+        const promptOptions = {
+            tokenName: request.tokenName,
+            theme: request.theme,
+            style: request.style,
+            colors: request.colors
+        };
         const prompt = config_1.config.general.enablePromptEnhancement
-            ? this.promptGenerator.generateEnhancedPrompt(request.tokenName, request.theme, request.style, request.colors)
-            : this.promptGenerator.generatePrompt(request.tokenName, request.theme, request.style, request.colors);
+            ? this.promptGenerator.generateEnhancedPrompt(promptOptions)
+            : this.promptGenerator.generatePrompt(promptOptions);
         console.log(`📝 Generated prompt: ${prompt}`);
         // Determine provider preference
         const primaryProvider = options?.provider || config_1.config.general.defaultProvider;
@@ -90,7 +96,7 @@ class LogoGenerator {
                 console.log(`💾 Logo saved locally: ${localPath}`);
             }
             catch (error) {
-                console.warn('⚠️ Failed to save logo locally:', error);
+                console.warn(`⚠️ Failed to save logo locally for ${request.tokenName}:`, error instanceof Error ? error.message : String(error));
             }
         }
         // Add to history
@@ -150,7 +156,11 @@ class LogoGenerator {
         // Validate colors if provided
         if (request.colors) {
             for (const color of request.colors) {
-                if (!/^#[0-9A-Fa-f]{6}$/.test(color) && !/^[a-zA-Z]+$/.test(color)) {
+                const isValidColor = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color) || // Hex colors
+                    /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/.test(color) || // RGB
+                    /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)$/.test(color) || // RGBA
+                    /^[a-zA-Z]+$/.test(color); // Named colors
+                if (!isValidColor) {
                     warnings.push(`Color '${color}' may not be recognized. Use hex codes (#RRGGBB) or color names.`);
                 }
             }
@@ -166,7 +176,7 @@ class LogoGenerator {
         await promises_1.default.mkdir(config_1.config.general.outputPath, { recursive: true });
         // Generate filename
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `${request.tokenName.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}_${provider}.png`;
+        const filename = `${request.tokenName.replace(/[^a-zA-Z0-9\\-_]/g, '_')}_${timestamp}_${provider}.png`;
         const filepath = path_1.default.join(config_1.config.general.outputPath, filename);
         // Download and save image
         if (logoUrl.startsWith('data:')) {
@@ -237,7 +247,9 @@ class LogoGenerator {
             results.push(result);
             // Small delay between generations to respect rate limits
             if (i < count - 1) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                const provider = result.metadata.provider;
+                const delay = provider === types_1.AIProvider.STABILITY_AI ? 10000 : 6000; // Based on provider rate limits
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
         return results;

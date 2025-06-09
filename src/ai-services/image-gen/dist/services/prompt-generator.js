@@ -46,7 +46,25 @@ class PromptGenerator {
             ]
         };
     }
-    generatePrompt(tokenName, theme, style, colors) {
+    generatePrompt(options) {
+        const { tokenName, theme, style, colors } = options;
+        // Validate token name first
+        const validation = this.validateTokenName(tokenName);
+        if (!validation.isValid) {
+            throw new Error(`Invalid token name: ${validation.suggestion}`);
+        }
+        // Validate theme if provided
+        if (theme && !this.template.themeModifiers[theme.toLowerCase()]) {
+            console.warn(`Unknown theme '${theme}', continuing without theme modifier`);
+        }
+        // Validate style if provided
+        if (style && !this.template.styleModifiers[style]) {
+            console.warn(`Unknown style '${style}', continuing without style modifier`);
+        }
+        // Validate colors if provided
+        if (colors && (!Array.isArray(colors) || colors.some(color => typeof color !== 'string'))) {
+            throw new Error('Colors must be an array of strings');
+        }
         let prompt = this.template.base.replace('{tokenName}', tokenName);
         // Add style modifier
         if (style && this.template.styleModifiers[style]) {
@@ -68,8 +86,8 @@ class PromptGenerator {
         prompt += " Circular logo format, transparent background, centered composition, logo only without text below.";
         return prompt;
     }
-    generateEnhancedPrompt(tokenName, theme, style, colors) {
-        const basePrompt = this.generatePrompt(tokenName, theme, style, colors);
+    generateEnhancedPrompt(options) {
+        const basePrompt = this.generatePrompt(options);
         // Add advanced prompt engineering techniques
         const enhancedElements = [
             "ultra-detailed",
@@ -125,8 +143,16 @@ class PromptGenerator {
     }
     getRandomEnhancers(count, source) {
         const enhancers = source || this.template.qualityEnhancers;
-        const shuffled = [...enhancers].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, count);
+        return this.shuffleArray(enhancers).slice(0, count);
+    }
+    shuffleArray(array) {
+        const shuffled = [...array];
+        // Fisher-Yates shuffle algorithm for better randomness
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
     }
 }
 exports.PromptGenerator = PromptGenerator;

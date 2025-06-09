@@ -74,7 +74,7 @@ export class LogoGenerationApiClient {
             `API Error (${error.response.status}): ${
               typeof error.response.data === 'string'
                 ? error.response.data
-                : error.response.data?.error || error.message
+                : (error.response.data as any)?.error || error.message
             }`
           );
         } else if (error.request) {

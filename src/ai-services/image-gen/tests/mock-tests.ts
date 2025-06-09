@@ -76,30 +76,30 @@ export class MockTestRunner {
     console.log('   Testing prompt generation...');
 
     // Test basic prompt generation
-    const prompt1 = this.promptGenerator.generatePrompt('CryptoCoin', 'crypto', LogoStyle.MODERN);
+    const prompt1 = this.promptGenerator.generatePrompt({ tokenName: 'CryptoCoin', theme: 'crypto', style: LogoStyle.MODERN });
     if (!prompt1 || prompt1.length < 10) {
       throw new Error('Basic prompt generation failed');
     }
 
     // Test with colors
-    const prompt2 = this.promptGenerator.generatePrompt(
-      'GameToken', 
-      'gaming', 
-      LogoStyle.FUTURISTIC, 
-      ['#FF0000', '#00FF00']
-    );
+    const prompt2 = this.promptGenerator.generatePrompt({
+      tokenName: 'GameToken',
+      theme: 'gaming',
+      style: LogoStyle.FUTURISTIC,
+      colors: ['#FF0000', '#00FF00']
+    });
     if (!prompt2.includes('color') && !prompt2.includes('FF0000')) {
       console.warn('Color information might not be properly included in prompt');
     }
 
     // Test auto-theme detection
-    const prompt3 = this.promptGenerator.generatePrompt('DeFiSwap'); // No explicit theme
+    const prompt3 = this.promptGenerator.generatePrompt({ tokenName: 'DeFiSwap' }); // No explicit theme
     if (!prompt3) {
       throw new Error('Auto-theme prompt generation failed');
     }
 
     // Test with special characters
-    const prompt4 = this.promptGenerator.generatePrompt('Token-2024!', 'tech', LogoStyle.MINIMALIST);
+    const prompt4 = this.promptGenerator.generatePrompt({ tokenName: 'Token-2024!', theme: 'tech', style: LogoStyle.MINIMALIST });
     if (!prompt4) {
       throw new Error('Special character handling failed');
     }
@@ -251,24 +251,24 @@ export class MockTestRunner {
 
     // Test very long token names
     const longName = 'A'.repeat(200);
-    const longPrompt = this.promptGenerator.generatePrompt(longName, 'crypto', LogoStyle.MODERN);
+    const longPrompt = this.promptGenerator.generatePrompt({ tokenName: longName, theme: 'crypto', style: LogoStyle.MODERN });
     if (!longPrompt) {
       throw new Error('Failed to handle very long token name');
     }
 
     // Test empty/invalid inputs (should not crash)
     try {
-      this.promptGenerator.generatePrompt('', 'crypto', LogoStyle.MODERN);
+      this.promptGenerator.generatePrompt({ tokenName: '', theme: 'crypto', style: LogoStyle.MODERN });
     } catch (error) {
       // This is expected to fail, but shouldn't crash the service
     }
 
     // Test invalid enum values (should handle gracefully)
-    const invalidStylePrompt = this.promptGenerator.generatePrompt(
-      'TestToken', 
-      'crypto', 
-      'invalid-style' as any
-    );
+    const invalidStylePrompt = this.promptGenerator.generatePrompt({
+      tokenName: 'TestToken',
+      theme: 'crypto',
+      style: 'invalid-style' as any
+    });
     if (!invalidStylePrompt) {
       throw new Error('Failed to handle invalid style gracefully');
     }

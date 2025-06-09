@@ -14,7 +14,7 @@ describe('PromptGenerator', () => {
 
   describe('generatePrompt', () => {
     test('should generate basic prompt for token name only', () => {
-      const prompt = generator.generatePrompt('TestToken');
+      const prompt = generator.generatePrompt({ tokenName: 'TestToken' });
       
       expect(prompt).toContain('TestToken');
       expect(prompt).toContain('professional logo');
@@ -23,20 +23,20 @@ describe('PromptGenerator', () => {
     });
 
     test('should include style modifier when provided', () => {
-      const prompt = generator.generatePrompt('TestToken', undefined, LogoStyle.MODERN);
+      const prompt = generator.generatePrompt({ tokenName: 'TestToken', style: LogoStyle.MODERN });
       
       expect(prompt).toContain('modern design');
       expect(prompt).toContain('contemporary');
     });
 
     test('should include theme modifier when provided', () => {
-      const prompt = generator.generatePrompt('TestToken', 'gaming');
+      const prompt = generator.generatePrompt({ tokenName: 'TestToken', theme: 'gaming' });
       
       expect(prompt).toContain('gaming');
     });
 
     test('should include colors when provided', () => {
-      const prompt = generator.generatePrompt('TestToken', undefined, undefined, ['#FF0000', '#00FF00']);
+      const prompt = generator.generatePrompt({ tokenName: 'TestToken', colors: ['#FF0000', '#00FF00'] });
       
       expect(prompt).toContain('#FF0000');
       expect(prompt).toContain('#00FF00');
@@ -45,8 +45,8 @@ describe('PromptGenerator', () => {
 
   describe('generateEnhancedPrompt', () => {
     test('should generate longer prompt than basic version', () => {
-      const basicPrompt = generator.generatePrompt('TestToken');
-      const enhancedPrompt = generator.generateEnhancedPrompt('TestToken');
+      const basicPrompt = generator.generatePrompt({ tokenName: 'TestToken' });
+      const enhancedPrompt = generator.generateEnhancedPrompt({ tokenName: 'TestToken' });
       
       expect(enhancedPrompt.length).toBeGreaterThan(basicPrompt.length);
       expect(enhancedPrompt).toContain('Additional requirements');
