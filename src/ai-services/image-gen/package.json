@@ -1,0 +1,63 @@
+{
+  "name": "degenie-logo-generator",
+  "version": "1.0.0",
+  "description": "AI-powered logo generation service for DeGenie token creation platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "dev:server": "tsx src/api/server.ts",
+    "start": "node dist/index.js",
+    "start:server": "node dist/api/server.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:mock": "tsx tests/mock-tests.ts",
+    "test:scenarios": "tsx tests/run-tests.ts",
+    "test:integration": "tsx examples/api-integration.ts",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "openai": "^4.67.3",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "sharp": "^0.33.5",
+    "uuid": "^11.0.3",
+    "form-data": "^4.0.1",
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/uuid": "^10.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/express": "^5.0.0",
+    "@types/cors": "^2.8.17",
+    "@types/multer": "^1.4.12",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "eslint": "^9.18.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "ai",
+    "logo-generation",
+    "dalle",
+    "stable-diffusion",
+    "token-branding",
+    "crypto",
+    "solana"
+  ],
+  "author": "DeGenie Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
