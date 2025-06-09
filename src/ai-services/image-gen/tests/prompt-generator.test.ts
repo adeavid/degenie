@@ -76,7 +76,7 @@ describe('PromptGenerator', () => {
     test('should reject token names with special characters', () => {
       const result = generator.validateTokenName('Token@#$');
       expect(result.isValid).toBe(false);
-      expect(result.suggestion).toContain('only contain letters');
+      expect(result.suggestion).toContain('invalid characters');
     });
   });
 

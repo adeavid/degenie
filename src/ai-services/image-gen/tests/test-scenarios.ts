@@ -6,7 +6,6 @@
 import { LogoGenerationApiClient, createApiClient } from '../src/client/api-client';
 import { LogoStyle, ImageSize, ImageFormat } from '../src/types';
 
-<<<<<<< HEAD
 interface LogoGenerationInput {
   tokenName: string;
   theme?: string;
@@ -21,12 +20,6 @@ export interface TestScenario {
   name: string;
   description: string;
   input: Partial<LogoGenerationInput>;
-=======
-export interface TestScenario {
-  name: string;
-  description: string;
-  input: any;
->>>>>>> origin/main
   expectedBehavior: 'success' | 'error' | 'partial';
   category: 'basic' | 'edge-case' | 'stress' | 'validation';
 }
@@ -100,19 +93,11 @@ export const testScenarios: TestScenario[] = [
     name: 'Very long token name',
     description: 'Test with extremely long token name',
     input: {
-<<<<<<< HEAD
       tokenName: 'SuperDuperMegaAwesomeUltraSpecialCryptoTokenOfTheDecentralizedFuture', // 68 chars > 50
       theme: 'crypto',
       style: LogoStyle.MINIMALIST,
     },
     expectedBehavior: 'error', // validation should reject names >50 chars
-=======
-      tokenName: 'SuperDuperMegaAwesomeUltraSpecialCryptoTokenOfTheDecentralizedFuture',
-      theme: 'crypto',
-      style: LogoStyle.MINIMALIST,
-    },
-    expectedBehavior: 'success',
->>>>>>> origin/main
     category: 'edge-case',
   },
   {
@@ -338,7 +323,6 @@ export class TestRunner {
     });
   }
 
-<<<<<<< HEAD
   // Public wrapper methods for accessing private functionality
   public async testConnection(): Promise<boolean> {
     return this.client.testConnection();
@@ -348,8 +332,6 @@ export class TestRunner {
     return this.runSingleTest(scenario);
   }
 
-=======
->>>>>>> origin/main
   async runAllTests(): Promise<void> {
     console.log('🧪 Starting comprehensive logo generation tests...\n');
 
@@ -392,24 +374,18 @@ export class TestRunner {
       
       let result;
       if (scenario.input.variations && scenario.input.variations > 1) {
-<<<<<<< HEAD
         if (!scenario.input.tokenName) {
           throw new Error('Token name is required for variations');
         }
-=======
->>>>>>> origin/main
         result = await this.client.generateVariations(
           scenario.input.tokenName,
           scenario.input.variations,
           scenario.input
         );
       } else {
-<<<<<<< HEAD
         if (!scenario.input.tokenName) {
           throw new Error('Token name is required');
         }
-=======
->>>>>>> origin/main
         result = await this.client.generateSimpleLogo(
           scenario.input.tokenName,
           scenario.input.theme,

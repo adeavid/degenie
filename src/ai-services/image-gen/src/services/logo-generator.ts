@@ -27,10 +27,7 @@ export class LogoGenerator {
   private openaiClient?: OpenAIClient;
   private stabilityClient?: StabilityClient;
   private generationHistory: LogoResponse[] = [];
-<<<<<<< HEAD
   private readonly MAX_HISTORY = 500;
-=======
->>>>>>> origin/main
 
   constructor() {
     this.promptGenerator = new PromptGenerator();
@@ -103,24 +100,16 @@ export class LogoGenerator {
     const fallbackProvider = options?.fallbackProvider || config.general.fallbackProvider;
 
     // Try primary provider first
-<<<<<<< HEAD
     const t0 = Date.now();
     let result = await this.tryProvider(primaryProvider, prompt, request);
     result.generationTime ??= Date.now() - t0;
-=======
-    let result = await this.tryProvider(primaryProvider, prompt, request);
->>>>>>> origin/main
 
     // If primary fails, try fallback
     if (!result.success && fallbackProvider && fallbackProvider !== primaryProvider) {
       console.log(`🔄 Primary provider failed, trying fallback: ${fallbackProvider}`);
-<<<<<<< HEAD
       const t1 = Date.now();
       result = await this.tryProvider(fallbackProvider, prompt, request);
       result.generationTime ??= Date.now() - t1;
-=======
-      result = await this.tryProvider(fallbackProvider, prompt, request);
->>>>>>> origin/main
     }
 
     // Save locally if successful and enabled
@@ -136,12 +125,9 @@ export class LogoGenerator {
 
     // Add to history
     this.generationHistory.push(result);
-<<<<<<< HEAD
     if (this.generationHistory.length > this.MAX_HISTORY) {
       this.generationHistory.shift(); // drop oldest
     }
-=======
->>>>>>> origin/main
 
     // Log result
     if (result.success) {
@@ -226,13 +212,9 @@ export class LogoGenerator {
 
     // Generate filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-<<<<<<< HEAD
     const sanitized = request.tokenName.replace(/[^a-zA-Z0-9\\-_]/g, '_').slice(0, 50);
     const ext = request.format?.toLowerCase() ?? 'png';
     const filename = `${sanitized}_${timestamp}_${provider}.${ext}`;
-=======
-    const filename = `${request.tokenName.replace(/[^a-zA-Z0-9\\-_]/g, '_')}_${timestamp}_${provider}.png`;
->>>>>>> origin/main
     const filepath = path.join(config.general.outputPath, filename);
 
     // Download and save image
@@ -242,7 +224,6 @@ export class LogoGenerator {
       const buffer = Buffer.from(base64Data, 'base64');
       
       // Process with sharp for consistent format
-<<<<<<< HEAD
       const sharpProcessor = sharp(buffer);
       if (ext === 'png') {
         await sharpProcessor.png({ quality: 100 }).toFile(filepath);
@@ -251,11 +232,6 @@ export class LogoGenerator {
       } else {
         await sharpProcessor.png({ quality: 100 }).toFile(filepath);
       }
-=======
-      await sharp(buffer)
-        .png({ quality: 100 })
-        .toFile(filepath);
->>>>>>> origin/main
     } else {
       // Handle regular URLs
       const response = await axios({
@@ -264,7 +240,6 @@ export class LogoGenerator {
         responseType: 'arraybuffer',
         timeout: 30000,
       });
-<<<<<<< HEAD
       
       // Verify content-type is an image
       const contentType = response.headers['content-type'];
@@ -281,13 +256,6 @@ export class LogoGenerator {
       } else {
         await sharpProcessor.png({ quality: 100 }).toFile(filepath);
       }
-=======
-
-      // Process with sharp for consistent format and optimization
-      await sharp(Buffer.from(response.data))
-        .png({ quality: 100 })
-        .toFile(filepath);
->>>>>>> origin/main
     }
 
     return filepath;
