@@ -102,9 +102,6 @@ degenie/
 
 {optional body}
 
-🤖 Generated with Claude Code (https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ### GitHub CLI Commands
