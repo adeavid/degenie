@@ -31,6 +31,32 @@ export interface VariationsResponse {
   successCount: number;
 }
 
+export interface HistoryResponse {
+  history: LogoResponse[];
+  count: number;
+  limit: number;
+}
+
+export interface StatsResponse {
+  totalGenerations: number;
+  successfulGenerations: number;
+  failedGenerations: number;
+  averageGenerationTime: number;
+  providers: Record<string, any>;
+}
+
+export interface ClearHistoryResponse {
+  message: string;
+  timestamp: string;
+}
+
+export interface HealthCheckResponse {
+  status: string;
+  timestamp: string;
+  service: string;
+  version: string;
+}
+
 export interface ServiceInfoResponse {
   service: string;
   version: string;
@@ -38,7 +64,7 @@ export interface ServiceInfoResponse {
   styles: string[];
   sizes: string[];
   formats: string[];
-  usage: any;
+  usage: StatsResponse;
 }
 
 export class LogoGenerationApiClient {
@@ -121,33 +147,33 @@ export class LogoGenerationApiClient {
   /**
    * Get generation history
    */
-  async getHistory(limit?: number): Promise<{ history: LogoResponse[]; count: number; limit: number }> {
+  async getHistory(limit?: number): Promise<HistoryResponse> {
     const params = limit ? { limit: limit.toString() } : undefined;
-    const response = await this.makeRequest<any>('GET', '/api/history', undefined, params);
+    const response = await this.makeRequest<HistoryResponse>('GET', '/api/history', undefined, params);
     return response.data;
   }
 
   /**
    * Get usage statistics
    */
-  async getStats(): Promise<any> {
-    const response = await this.makeRequest<any>('GET', '/api/stats');
+  async getStats(): Promise<StatsResponse> {
+    const response = await this.makeRequest<StatsResponse>('GET', '/api/stats');
     return response.data;
   }
 
   /**
    * Clear generation history (admin function)
    */
-  async clearHistory(): Promise<{ message: string; timestamp: string }> {
-    const response = await this.makeRequest<any>('DELETE', '/api/history');
+  async clearHistory(): Promise<ClearHistoryResponse> {
+    const response = await this.makeRequest<ClearHistoryResponse>('DELETE', '/api/history');
     return response.data;
   }
 
   /**
    * Health check
    */
-  async healthCheck(): Promise<{ status: string; timestamp: string; service: string; version: string }> {
-    const response = await this.makeRequest<any>('GET', '/health');
+  async healthCheck(): Promise<HealthCheckResponse> {
+    const response = await this.makeRequest<HealthCheckResponse>('GET', '/health');
     return response.data;
   }
 

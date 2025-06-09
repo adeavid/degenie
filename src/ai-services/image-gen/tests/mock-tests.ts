@@ -6,6 +6,7 @@
 import { LogoGenerator } from '../src/services/logo-generator';
 import { PromptGenerator } from '../src/services/prompt-generator';
 import { LogoRequest, LogoStyle, ImageSize, AIProvider } from '../src/types';
+import { config } from '../src/config';
 
 export class MockTestRunner {
   private promptGenerator: PromptGenerator;
@@ -19,6 +20,17 @@ export class MockTestRunner {
 
   constructor() {
     this.promptGenerator = new PromptGenerator();
+    
+    // Mock API keys for testing to prevent initialization failures
+    this.setupMockApiKeys();
+  }
+
+  private setupMockApiKeys() {
+    // Ensure at least one API key is set for LogoGenerator initialization
+    if (!config.openai.apiKey && !config.stabilityAI.apiKey) {
+      // Set a dummy API key for testing
+      (config.openai as any).apiKey = 'test-key-for-mocking';
+    }
   }
 
   async runAllMockTests(): Promise<void> {

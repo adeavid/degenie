@@ -23,6 +23,28 @@ export interface VariationsResponse {
     count: number;
     successCount: number;
 }
+export interface HistoryResponse {
+    history: LogoResponse[];
+    count: number;
+    limit: number;
+}
+export interface StatsResponse {
+    totalGenerations: number;
+    successfulGenerations: number;
+    failedGenerations: number;
+    averageGenerationTime: number;
+    providers: Record<string, any>;
+}
+export interface ClearHistoryResponse {
+    message: string;
+    timestamp: string;
+}
+export interface HealthCheckResponse {
+    status: string;
+    timestamp: string;
+    service: string;
+    version: string;
+}
 export interface ServiceInfoResponse {
     service: string;
     version: string;
@@ -30,7 +52,7 @@ export interface ServiceInfoResponse {
     styles: string[];
     sizes: string[];
     formats: string[];
-    usage: any;
+    usage: StatsResponse;
 }
 export declare class LogoGenerationApiClient {
     private client;
@@ -51,31 +73,19 @@ export declare class LogoGenerationApiClient {
     /**
      * Get generation history
      */
-    getHistory(limit?: number): Promise<{
-        history: LogoResponse[];
-        count: number;
-        limit: number;
-    }>;
+    getHistory(limit?: number): Promise<HistoryResponse>;
     /**
      * Get usage statistics
      */
-    getStats(): Promise<any>;
+    getStats(): Promise<StatsResponse>;
     /**
      * Clear generation history (admin function)
      */
-    clearHistory(): Promise<{
-        message: string;
-        timestamp: string;
-    }>;
+    clearHistory(): Promise<ClearHistoryResponse>;
     /**
      * Health check
      */
-    healthCheck(): Promise<{
-        status: string;
-        timestamp: string;
-        service: string;
-        version: string;
-    }>;
+    healthCheck(): Promise<HealthCheckResponse>;
     /**
      * Convenience method: Generate a simple logo
      */
