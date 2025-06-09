@@ -22,10 +22,12 @@ fi
 echo "🌐 Setting Solana cluster to devnet..."
 solana config set --url devnet
 
-# Check wallet exists
-if [ ! -f ~/.config/solana/id.json ]; then
-    echo "🔑 Creating new Solana keypair..."
-    solana-keygen new --outfile ~/.config/solana/id.json --no-bip39-passphrase
+# Check wallet exists (support custom wallet path)
+WALLET_PATH="${SOLANA_WALLET_PATH:-~/.config/solana/id.json}"
+if [ ! -f "$WALLET_PATH" ]; then
+    echo "🔑 Creating new Solana keypair at $WALLET_PATH..."
+    mkdir -p "$(dirname "$WALLET_PATH")"
+    solana-keygen new --outfile "$WALLET_PATH" --no-bip39-passphrase
 fi
 
 # Check balance and airdrop if needed

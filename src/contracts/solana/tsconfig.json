@@ -18,7 +18,9 @@
   },
   "include": [
     "tests/**/*",
-    "app/**/*"
+    "app/**/*",
+    "scripts/**/*",
+    "migrations/**/*"
   ],
   "exclude": [
     "node_modules",

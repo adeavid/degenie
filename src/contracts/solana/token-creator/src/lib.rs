@@ -7,6 +7,7 @@ use anchor_spl::{
     },
     token::{mint_to, burn, transfer, Mint, MintTo, Burn, Transfer, Token, TokenAccount, freeze_account, thaw_account, FreezeAccount, ThawAccount},
 };
+use solana_program::program_option::COption;
 
 declare_id!("DeGenieTokenCreator11111111111111111111111");
 
@@ -285,7 +286,7 @@ pub mod degenie_token_creator {
         );
         burn(burn_ctx, token_amount)?;
 
-        // Transfer SOL back to seller
+        // Transfer SOL back to seller using system program (safe)
         let seeds = &[
             b"bonding_curve",
             bonding_curve.mint.as_ref(),
@@ -293,8 +294,16 @@ pub mod degenie_token_creator {
         ];
         let signer = &[&seeds[..]];
 
-        **ctx.accounts.treasury.to_account_info().try_borrow_mut_lamports()? -= sol_to_return;
-        **ctx.accounts.seller.to_account_info().try_borrow_mut_lamports()? += sol_to_return;
+        // Safe SOL transfer using system program
+        let transfer_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.treasury.to_account_info(),
+                to: ctx.accounts.seller.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(transfer_ctx, sol_to_return)?;
 
         // Update bonding curve state
         bonding_curve.total_supply -= token_amount;
@@ -343,10 +352,16 @@ pub struct CreateToken<'info> {
 
 #[derive(Accounts)]
 pub struct MintTokens<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = mint.mint_authority == COption::Some(authority.key()) @ TokenCreatorError::InsufficientAuthority
+    )]
     pub mint: Account<'info, Mint>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = destination.mint == mint.key() @ TokenCreatorError::InvalidAmount
+    )]
     pub destination: Account<'info, TokenAccount>,
     
     pub authority: Signer<'info>,
@@ -469,6 +484,7 @@ pub struct SellTokens<'info> {
     pub treasury: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 #[account]

@@ -10,7 +10,28 @@ const { Program, AnchorProvider, Wallet, web3 } = require('@coral-xyz/anchor');
 
 // Configuration
 const DEVNET_URL = 'https://api.devnet.solana.com';
-const PROGRAM_ID = 'DeGenieTokenCreator11111111111111111111111'; // This will be updated after deployment
+
+// Dynamic program ID loading
+function getProgramId() {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Try to read from target/deploy directory
+        const deployDir = path.join(__dirname, '..', 'target', 'deploy');
+        const keypairPath = path.join(deployDir, 'degenie_token_creator-keypair.json');
+        
+        if (fs.existsSync(keypairPath)) {
+            const keypairData = JSON.parse(fs.readFileSync(keypairPath, 'utf8'));
+            return new PublicKey(keypairData.publicKey || 'DeGenieTokenCreator11111111111111111111111');
+        }
+    } catch (error) {
+        console.warn('⚠️  Could not load dynamic program ID, using placeholder');
+    }
+    
+    // Fallback to placeholder
+    return 'DeGenieTokenCreator11111111111111111111111';
+}
 
 async function validateTestnet() {
     console.log('🧞‍♂️ DeGenie Testnet Validation');
@@ -22,7 +43,7 @@ async function validateTestnet() {
         console.log('✅ Connected to Solana devnet');
         
         // Check program exists
-        const programId = new PublicKey(PROGRAM_ID);
+        const programId = new PublicKey(getProgramId());
         const programAccount = await connection.getAccountInfo(programId);
         
         if (!programAccount) {

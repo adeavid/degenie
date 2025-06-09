@@ -116,7 +116,37 @@ gh pr merge                    # Merge approved PR
 gh issue list                  # List open issues
 gh issue create               # Create new issue
 gh issue close               # Close resolved issue
+
+# Automated Workflow
+./scripts/automated_pr_workflow.sh    # Complete automated PR workflow
+./scripts/poll_ci.sh <PR_NUMBER>      # Monitor CI status
 ```
+
+### Automated PR Workflow
+```bash
+# Complete automation: PR creation → CI monitoring → CodeRabbit review → Merge
+./scripts/automated_pr_workflow.sh
+
+# The script will:
+# 1. Create PR with proper title and description
+# 2. Monitor CI status until completion
+# 3. Check for CodeRabbit feedback
+# 4. Offer to auto-fix CodeRabbit suggestions
+# 5. Auto-merge if all checks pass
+# 6. Clean up branches and return to main
+```
+
+### Definition of Done
+For each subtask completion:
+1. **Code Implementation**: Feature fully implemented and tested
+2. **Quality Checks**: `npm run lint` and `npm run typecheck` passing
+3. **Commit Changes**: Descriptive commit with Claude Code signature
+4. **Create PR**: `./scripts/automated_pr_workflow.sh` or manual PR creation
+5. **Monitor CI**: `./scripts/poll_ci.sh <PR_NUMBER>` until all checks pass
+6. **CodeRabbit Review**: Address any automated feedback provided
+7. **Merge**: Auto-merge when all checks pass and feedback addressed
+8. **Update TaskMaster**: Mark subtask as completed
+9. **Continue**: Move to next task in dependency chain
 
 ## Development Guidelines
 
