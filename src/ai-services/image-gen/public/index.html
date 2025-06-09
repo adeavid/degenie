@@ -389,11 +389,45 @@
             // Convert variations to number
             data.variations = parseInt(data.variations);
 
-            // Show loading
+            // Show loading with time estimation
+            const variations = parseInt(data.variations) || 1;
+            const estimatedTime = variations === 1 ? '15-30' : `${15 + (variations - 1) * 10}-${30 + (variations - 1) * 15}`;
+            
+            loading.innerHTML = `
+                <div class="spinner"></div>
+                <div class="loading-text">
+                    <h3>🎨 Generating ${variations} logo${variations > 1 ? 's' : ''}...</h3>
+                    <p>Estimated time: ${estimatedTime} seconds</p>
+                    <p class="loading-details">Using AI to create your perfect logo design</p>
+                    <div class="progress-dots">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            `;
             loading.classList.add('show');
             results.innerHTML = '';
             generateBtn.disabled = true;
-            generateBtn.textContent = 'Generating...';
+            generateBtn.textContent = `Generating ${variations} logo${variations > 1 ? 's' : ''}...`;
+            
+            // Start progress timer
+            let progressSeconds = 0;
+            const progressInterval = setInterval(() => {
+                progressSeconds++;
+                const progressText = loading.querySelector('.loading-details');
+                if (progressText) {
+                    if (progressSeconds < 10) {
+                        progressText.textContent = 'Analyzing your requirements...';
+                    } else if (progressSeconds < 20) {
+                        progressText.textContent = 'Creating AI-generated design...';
+                    } else if (progressSeconds < 30) {
+                        progressText.textContent = 'Adding finishing touches...';
+                    } else {
+                        progressText.textContent = 'Almost ready, finalizing details...';
+                    }
+                }
+            }, 1000);
 
             try {
                 const response = await fetch('/api/generate', {
@@ -416,6 +450,10 @@
                     </div>
                 `;
             } finally {
+                // Clear progress timer
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
                 loading.classList.remove('show');
                 generateBtn.disabled = false;
                 generateBtn.textContent = 'Generate Logo';
