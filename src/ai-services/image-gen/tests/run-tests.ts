@@ -6,7 +6,10 @@
  */
 
 import { TestRunner, testScenarios } from './test-scenarios';
+<<<<<<< HEAD
 import { createApiClient } from '../src/client/api-client';
+=======
+>>>>>>> origin/main
 
 async function main() {
   const args = process.argv.slice(2);
@@ -93,7 +96,11 @@ async function runCategoryTests(runner: TestRunner, category: string) {
   }
 
   // Test connection first
+<<<<<<< HEAD
   const isConnected = await runner.testConnection();
+=======
+  const isConnected = await runner['client'].testConnection();
+>>>>>>> origin/main
   if (!isConnected) {
     console.error('❌ Cannot connect to API server');
     return;
@@ -102,7 +109,11 @@ async function runCategoryTests(runner: TestRunner, category: string) {
   console.log('✅ Connected to API server\n');
 
   for (const scenario of categoryScenarios) {
+<<<<<<< HEAD
     await runner.runScenario(scenario);
+=======
+    await runner['runSingleTest'](scenario);
+>>>>>>> origin/main
   }
 
   runner['generateReport']();
@@ -116,7 +127,11 @@ async function runQuickTests(runner: TestRunner) {
   ).slice(0, 5);
 
   // Test connection first
+<<<<<<< HEAD
   const isConnected = await runner.testConnection();
+=======
+  const isConnected = await runner['client'].testConnection();
+>>>>>>> origin/main
   if (!isConnected) {
     console.error('❌ Cannot connect to API server');
     return;
@@ -125,7 +140,11 @@ async function runQuickTests(runner: TestRunner) {
   console.log('✅ Connected to API server\n');
 
   for (const scenario of quickScenarios) {
+<<<<<<< HEAD
     await runner.runScenario(scenario);
+=======
+    await runner['runSingleTest'](scenario);
+>>>>>>> origin/main
   }
 
   const results = runner.getResults();
@@ -150,13 +169,21 @@ async function runSingleScenario(runner: TestRunner, scenarioName: string) {
   console.log(`🎯 Running single scenario: ${scenario.name}\n`);
 
   // Test connection first
+<<<<<<< HEAD
   const isConnected = await runner.testConnection();
+=======
+  const isConnected = await runner['client'].testConnection();
+>>>>>>> origin/main
   if (!isConnected) {
     console.error('❌ Cannot connect to API server');
     return;
   }
 
+<<<<<<< HEAD
   await runner.runScenario(scenario);
+=======
+  await runner['runSingleTest'](scenario);
+>>>>>>> origin/main
   
   const results = runner.getResults();
   if (results.length > 0) {

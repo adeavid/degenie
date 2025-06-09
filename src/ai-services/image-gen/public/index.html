@@ -387,7 +387,11 @@
                 theme: form.theme.value.trim(),
                 style: form.style.value,
                 size: form.size.value,
+<<<<<<< HEAD
                 format: 'png', // or add a format select field to the form
+=======
+                format: form.format.value,
+>>>>>>> origin/main
                 variations: parseInt(form.variations.value) || 1
             };
             
@@ -395,10 +399,14 @@
             const colorInputs = document.querySelectorAll('.color-input');
             const colors = Array.from(colorInputs)
                 .map(input => input.value.trim())
+<<<<<<< HEAD
                 .filter(color => {
                     // Validate hex color format
                     return /^#[0-9A-Fa-f]{6}$/.test(color);
                 });
+=======
+                .filter(color => color.length > 0);
+>>>>>>> origin/main
             
             if (colors.length > 0) {
                 data.colors = colors;
