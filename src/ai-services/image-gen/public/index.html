@@ -381,16 +381,25 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
+            // Collect form data manually to ensure proper JSON structure
+            const data = {
+                tokenName: form.tokenName.value.trim(),
+                theme: form.theme.value.trim(),
+                style: form.style.value,
+                size: form.size.value,
+                format: form.format.value,
+                variations: parseInt(form.variations.value) || 1
+            };
             
             // Collect colors
             const colorInputs = document.querySelectorAll('.color-input');
-            const colors = Array.from(colorInputs).map(input => input.value);
-            data.colors = colors;
-
-            // Convert variations to number
-            data.variations = parseInt(data.variations);
+            const colors = Array.from(colorInputs)
+                .map(input => input.value.trim())
+                .filter(color => color.length > 0);
+            
+            if (colors.length > 0) {
+                data.colors = colors;
+            }
 
             // Show loading with time estimation
             const variations = parseInt(data.variations) || 1;
@@ -533,6 +542,9 @@
         window.addEventListener('load', async () => {
             try {
                 const response = await fetch('/api/info');
+                if (!response.ok) {
+                    throw new Error(`Service info failed: ${response.status} ${response.statusText}`);
+                }
                 const info = await response.json();
                 console.log('Service Info:', info);
             } catch (error) {

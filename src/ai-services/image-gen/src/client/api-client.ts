@@ -37,12 +37,20 @@ export interface HistoryResponse {
   limit: number;
 }
 
+export interface ProviderStats {
+  generations: number;
+  successes: number;
+  failures: number;
+  averageTime: number;
+  lastUsed: string;
+}
+
 export interface StatsResponse {
   totalGenerations: number;
   successfulGenerations: number;
   failedGenerations: number;
   averageGenerationTime: number;
-  providers: Record<string, any>;
+  providers: Record<string, ProviderStats>;
 }
 
 export interface ClearHistoryResponse {
