@@ -62,6 +62,13 @@ The main contract for creating AI-powered tokens on the Solana blockchain.
 
 - `create_token()`: Creates a new SPL token with metadata
 - `mint_tokens()`: Mints additional tokens for bonding curve mechanics
+- `buy_tokens()`: Purchases tokens through bonding curve with SOL
+- `sell_tokens()`: Sells tokens back to bonding curve for SOL
+- `burn_tokens()`: Burns tokens to reduce supply (SPL compliance)
+- `transfer_tokens()`: Transfers tokens between accounts (SPL compliance)
+- `freeze_token_account()`: Freezes token accounts for security
+- `thaw_token_account()`: Unfreezes previously frozen accounts
+- `initialize_bonding_curve()`: Sets up bonding curve parameters and limits
 
 ### Integration with DeGenie
 
@@ -76,3 +83,5 @@ This contract integrates with:
 - SPL Token standard compliance
 - Metadata validation
 - Error handling with custom error codes
+- Anti-dump protection against large-scale sell-offs
+- Maximum supply enforcement with hard caps
