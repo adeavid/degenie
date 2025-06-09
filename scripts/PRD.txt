@@ -1,0 +1,228 @@
+<context>
+# Overview
+DeGenie is an AI-powered cryptocurrency token creation platform that revolutionizes how meme coins and community tokens are launched. Unlike existing platforms like pump.fun, DeGenie eliminates the need for creators to handle any design, marketing, or technical aspects by automatically generating all necessary assets using AI. The platform targets crypto enthusiasts, meme creators, and entrepreneurs who want to launch tokens quickly without technical or design skills. DeGenie's value proposition is simple: "From idea to viral token in 60 seconds - AI does everything else."
+
+# Core Features
+
+## 1. AI Asset Generation Suite
+- **Logo Generator**: Creates unique, meme-worthy logos based on token name and theme using advanced AI models
+- **Meme Library**: Generates 100+ customizable memes automatically tailored to the token's personality
+- **GIF Creator**: Produces animated content and reaction GIFs for social media engagement
+- **Banner Suite**: Auto-generates headers and banners for Twitter, Discord, Telegram, and other platforms
+- **Website Builder**: Creates a complete landing page with tokenomics, roadmap, and professional design
+
+## 2. Marketing Automation Platform
+- **Content Calendar**: Generates 30 days of pre-scheduled social media content
+- **Tweet Templates**: Provides 500+ viral tweet templates adapted to token personality
+- **Community Bots**: Deploys intelligent engagement bots for Discord/Telegram
+- **Viral Hook Generator**: Creates catchy phrases, slogans, and optimized hashtags
+- **Influencer Matching**: AI-powered system to connect tokens with relevant micro-influencers
+
+## 3. Launch & Trading Infrastructure
+- **60-Second Launch**: Streamlined token creation process faster than competitors
+- **Multi-chain Support**: Deploy on Solana, Base, Arbitrum, and more (not just Solana)
+- **Bonding Curve 2.0**: Enhanced pricing mechanism with built-in anti-dump features
+- **Auto-Liquidity**: Automatic liquidity provision with customizable parameters
+- **Fair Launch Guarantee**: No pre-allocation, transparent distribution
+
+## 4. Analytics & Intelligence
+- **Virality Predictor**: AI predicts success probability based on market trends
+- **Community Health Score**: Real-time metrics on community engagement and growth
+- **Whale Alert System**: Automated notifications for large transactions
+- **Trend Surfing**: Suggests optimal launch timing based on market conditions
+- **Sentiment Analysis**: Monitors social media sentiment across platforms
+
+## 5. Gamification & Engagement
+- **Creator Rewards**: Point system rewarding successful token creators
+- **Token Battle Royale**: Weekly competitions between new tokens
+- **AI Trading Competitions**: Automated trading bots compete using different strategies
+- **Meme Contests**: Community-driven meme competitions with prizes
+- **Leaderboards**: Rankings for creators, tokens, and communities
+
+# User Experience
+
+## User Personas
+1. **The Meme Lord**: Crypto-savvy content creator with viral ideas but no technical skills
+2. **The Entrepreneur**: Business-minded individual seeking to capitalize on crypto trends
+3. **The Community Builder**: Focus on creating engaged communities around shared interests
+4. **The Degen Trader**: Looking for the next 100x opportunity and early access
+
+## Key User Flows
+1. **Token Creation Flow**:
+   - Connect wallet → Enter token name/idea → AI generates all assets → Review & customize → Deploy in 60 seconds
+
+2. **Marketing Setup Flow**:
+   - Select marketing tier → AI analyzes token theme → Generate content calendar → Connect social accounts → Auto-publish
+
+3. **Community Building Flow**:
+   - Choose community platforms → Deploy bots → Set engagement rules → Monitor dashboard → Reward active members
+
+## UI/UX Considerations
+- Mobile-first design for on-the-go token creation
+- Dark/light mode with customizable themes
+- One-click actions for all major features
+- Real-time preview of all generated assets
+- Drag-and-drop customization interface
+</context>
+<PRD>
+# Technical Architecture
+
+## System Components
+1. **Frontend Application**
+   - Next.js 14 with TypeScript
+   - Tailwind CSS for styling
+   - Web3 wallet integration (WalletConnect, Phantom, MetaMask)
+   - Real-time WebSocket connections
+
+2. **AI Services Layer**
+   - Image Generation: Stable Diffusion / DALL-E API
+   - Text Generation: GPT-4 / Claude API
+   - Meme Templates: Custom trained models
+   - Trend Analysis: Custom ML pipeline
+
+3. **Blockchain Infrastructure**
+   - Multi-chain smart contracts (Solana, EVM-compatible)
+   - Token factory contracts
+   - Liquidity pool management
+   - Cross-chain bridge integration
+
+4. **Backend Services**
+   - Node.js/Express API server
+   - PostgreSQL for user data
+   - Redis for caching and sessions
+   - IPFS for decentralized storage
+
+## Data Models
+- User profiles and authentication
+- Token metadata and configurations
+- Generated assets storage
+- Analytics and metrics tracking
+- Transaction history
+- Community engagement data
+
+## APIs and Integrations
+- OpenAI/Anthropic for text generation
+- Stability AI/Midjourney for image generation
+- Twitter/X API for social posting
+- Telegram/Discord bot APIs
+- CoinGecko/CoinMarketCap for price data
+- Alchemy/Infura for blockchain access
+
+## Infrastructure Requirements
+- AWS/GCP cloud hosting
+- CDN for global asset delivery
+- Auto-scaling for high traffic
+- DDoS protection
+- SSL certificates
+- Monitoring and logging systems
+
+# Development Roadmap
+
+## Phase 1: MVP Foundation
+- Basic token creation on Solana
+- Simple logo generation with AI
+- Manual asset customization
+- Basic bonding curve implementation
+- Wallet connection and transactions
+- Simple landing page for each token
+
+## Phase 2: AI Enhancement
+- Advanced AI asset generation (memes, GIFs)
+- Automated social media content
+- Tweet template library
+- Community bot deployment
+- Virality prediction algorithm
+- Enhanced UI/UX
+
+## Phase 3: Multi-chain & Analytics
+- EVM chain support (Base, Arbitrum)
+- Comprehensive analytics dashboard
+- Influencer matching system
+- Advanced trading features
+- Mobile app development
+- API for third-party integrations
+
+## Phase 4: Ecosystem Growth
+- DAO governance implementation
+- Creator rewards program
+- Gamification features
+- Marketplace for templates
+- White-label solutions
+- Advanced security features
+
+# Logical Dependency Chain
+
+1. **Foundation Layer** (Must be built first)
+   - Smart contract infrastructure
+   - Basic token creation flow
+   - Wallet integration
+   - Simple UI
+
+2. **AI Integration Layer** (Depends on foundation)
+   - Connect AI APIs
+   - Asset generation pipeline
+   - Storage and retrieval system
+   - Preview functionality
+
+3. **Social Layer** (Depends on AI integration)
+   - Social media integrations
+   - Community platform bots
+   - Content scheduling system
+   - Analytics tracking
+
+4. **Advanced Features** (Depends on social layer)
+   - Gamification elements
+   - Marketplace functionality
+   - Cross-chain capabilities
+   - Enterprise features
+
+# Risks and Mitigations
+
+## Technical Challenges
+- **Risk**: AI generation quality inconsistency
+- **Mitigation**: Multiple AI model fallbacks, human review option, continuous model training
+
+- **Risk**: Blockchain congestion and high fees
+- **Mitigation**: Multi-chain support, layer 2 solutions, batch transactions
+
+- **Risk**: Regulatory compliance issues
+- **Mitigation**: Legal review, geo-blocking where necessary, clear terms of service
+
+## Market Risks
+- **Risk**: Competition from established platforms
+- **Mitigation**: Superior UX, unique AI features, aggressive marketing
+
+- **Risk**: Bear market reducing demand
+- **Mitigation**: Low operational costs, pivot to B2B model, focus on utility tokens
+
+## Resource Constraints
+- **Risk**: AI API costs scaling with users
+- **Mitigation**: Tiered pricing model, caching strategies, bulk API negotiations
+
+- **Risk**: Development complexity
+- **Mitigation**: Phased approach, MVP first, community feedback integration
+
+# Appendix
+
+## Research Findings
+- Pump.fun has facilitated 5.3 million token launches
+- Average user spends $5,000-$50,000 on meme coin projects
+- 78% of token creators lack design skills
+- 65% fail due to poor marketing
+- AI-generated content has 3x higher engagement rates
+
+## Technical Specifications
+- Solana: SPL Token Standard
+- EVM: ERC-20 Token Standard
+- API Rate Limits: 1000 req/min
+- Image Generation: 1024x1024 minimum
+- Response Time: <2 seconds for all operations
+- Uptime Target: 99.9%
+
+## Success Metrics
+- Time to launch: <60 seconds
+- User retention: >40% monthly
+- Token success rate: >10% reaching $100k market cap
+- Platform revenue: $1M monthly within 6 months
+- Active creators: 10,000+ within first year
+</PRD>

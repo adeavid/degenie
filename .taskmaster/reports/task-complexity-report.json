@@ -1,0 +1,213 @@
+{
+  "meta": {
+    "generatedAt": "2025-06-09T14:10:32.830Z",
+    "tasksAnalyzed": 25,
+    "totalTasks": 25,
+    "analysisCount": 25,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Setup Project Repository",
+      "complexityScore": 3,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the task into creating the Git repository, setting up the directory structure, and writing the README file.",
+      "reasoning": "The task involves straightforward steps but requires attention to detail in setting up the initial structure and documentation."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Implement Basic Token Creation on Solana",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the task into writing the smart contract, adhering to the SPL Token Standard, implementing minting functionality, and testing on a testnet.",
+      "reasoning": "Developing a smart contract on Solana involves understanding Rust and blockchain principles, making it moderately complex."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Develop Simple Logo Generation with AI",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Split the task into integrating the AI API, developing the input-output interface, and testing with various inputs.",
+      "reasoning": "Integrating AI services requires API knowledge and handling diverse input scenarios, adding to the complexity."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Setup Frontend Application with Next.js",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Separate the task into initializing the Next.js project, setting up TypeScript and Tailwind CSS, and implementing basic UI components.",
+      "reasoning": "Setting up a frontend with modern frameworks involves multiple steps but is relatively straightforward for experienced developers."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Integrate Web3 Wallets",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the task into integrating WalletConnect, Phantom, and MetaMask, testing connections, and verifying balance retrieval.",
+      "reasoning": "Wallet integration involves multiple libraries and ensuring compatibility across different blockchain environments, increasing complexity."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Implement Basic Bonding Curve",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the task into designing the bonding curve logic, implementing the smart contract, testing buy/sell functions, and simulating transactions.",
+      "reasoning": "Creating a bonding curve requires understanding of dynamic pricing and smart contract development, making it moderately complex."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Develop Simple Landing Page for Tokens",
+      "complexityScore": 4,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Split the task into designing the template, implementing tokenomics and roadmap sections, and ensuring customization.",
+      "reasoning": "Creating a landing page template is a common task in web development, with moderate complexity due to customization needs."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Setup Backend API Server",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Separate the task into setting up the Node.js server, implementing authentication endpoints, and testing with Postman.",
+      "reasoning": "Setting up a backend server involves basic server configuration and endpoint creation, which is moderately complex."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Implement User Authentication",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the task into implementing JWT authentication, securing login, managing sessions, and testing security.",
+      "reasoning": "User authentication requires secure handling of tokens and sessions, adding to the complexity."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Develop AI Asset Generation Pipeline",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the task into integrating AI APIs, orchestrating API calls, storing results, and testing asset quality.",
+      "reasoning": "Creating an AI pipeline involves multiple API integrations and ensuring quality outputs, making it complex."
+    },
+    {
+      "taskId": 11,
+      "taskTitle": "Implement Real-time WebSocket Connections",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Split the task into setting up WebSocket connections, implementing event handling, and testing real-time updates.",
+      "reasoning": "Real-time communication requires understanding of WebSocket protocols and event-driven programming, adding complexity."
+    },
+    {
+      "taskId": 12,
+      "taskTitle": "Develop Content Calendar Generation",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the task into integrating GPT-4/Claude API, implementing scheduling logic, and testing content relevance.",
+      "reasoning": "Generating a content calendar involves AI integration and scheduling logic, which are moderately complex tasks."
+    },
+    {
+      "taskId": 13,
+      "taskTitle": "Implement Community Bot Deployment",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the task into integrating Discord and Telegram APIs, implementing interaction rules, and testing bot engagement.",
+      "reasoning": "Deploying bots requires API integration and interaction logic, adding to the complexity."
+    },
+    {
+      "taskId": 14,
+      "taskTitle": "Integrate Social Media APIs",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Separate the task into connecting to Twitter API, implementing automated posting, and testing compliance with guidelines.",
+      "reasoning": "Social media API integration is straightforward but requires attention to API limits and compliance."
+    },
+    {
+      "taskId": 15,
+      "taskTitle": "Implement Virality Prediction Algorithm",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the task into data collection, model training, prediction implementation, and validation against historical data.",
+      "reasoning": "Developing a prediction algorithm involves data analysis and machine learning, making it complex."
+    },
+    {
+      "taskId": 16,
+      "taskTitle": "Develop Multi-chain Support",
+      "complexityScore": 9,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the task into extending smart contracts, ensuring EVM compatibility, and testing across multiple chains.",
+      "reasoning": "Supporting multiple blockchain environments requires extensive testing and compatibility checks, increasing complexity."
+    },
+    {
+      "taskId": 17,
+      "taskTitle": "Create Comprehensive Analytics Dashboard",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Split the task into designing charts, implementing data visualization, and testing with sample data.",
+      "reasoning": "Creating an analytics dashboard involves data handling and visualization, which are moderately complex tasks."
+    },
+    {
+      "taskId": 18,
+      "taskTitle": "Implement Influencer Matching System",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the task into analyzing influencer profiles, developing matching algorithms, and testing relevance.",
+      "reasoning": "Matching influencers with tokens involves complex AI models and data analysis, making it complex."
+    },
+    {
+      "taskId": 19,
+      "taskTitle": "Develop Mobile App",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the task into setting up React Native, implementing core features, and testing on iOS and Android.",
+      "reasoning": "Developing a cross-platform mobile app requires ensuring feature parity and performance across devices, adding complexity."
+    },
+    {
+      "taskId": 20,
+      "taskTitle": "Implement API for Third-party Integrations",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Separate the task into designing API endpoints, ensuring security, and testing with external clients.",
+      "reasoning": "Creating an API for third-party use involves security considerations and comprehensive documentation, increasing complexity."
+    },
+    {
+      "taskId": 21,
+      "taskTitle": "Implement DAO Governance",
+      "complexityScore": 9,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the task into designing governance models, implementing smart contracts, and simulating governance processes.",
+      "reasoning": "Implementing DAO governance involves complex smart contract logic and ensuring secure decision-making processes."
+    },
+    {
+      "taskId": 22,
+      "taskTitle": "Develop Creator Rewards Program",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the task into designing the rewards system, implementing smart contracts, and testing with simulated launches.",
+      "reasoning": "Creating a rewards program involves smart contract development and ensuring fairness, adding complexity."
+    },
+    {
+      "taskId": 23,
+      "taskTitle": "Implement Gamification Features",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Split the task into designing game mechanics, implementing smart contracts, and testing engagement features.",
+      "reasoning": "Gamification involves complex logic for competition mechanics and user engagement, making it complex."
+    },
+    {
+      "taskId": 24,
+      "taskTitle": "Develop Marketplace for Templates",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the task into implementing marketplace logic, designing user interfaces, and testing transactions.",
+      "reasoning": "Creating a marketplace involves transaction handling and user interface design, adding to the complexity."
+    },
+    {
+      "taskId": 25,
+      "taskTitle": "Implement Advanced Security Features",
+      "complexityScore": 9,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the task into implementing security measures, conducting audits, and performing penetration testing.",
+      "reasoning": "Enhancing platform security involves multiple layers of protection and regular audits, making it highly complex."
+    }
+  ]
+}
