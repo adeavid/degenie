@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeGenie AI Logo Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            padding: 40px;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .colors-input {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .color-input {
+            width: 60px !important;
+            height: 40px !important;
+            padding: 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .results-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            min-height: 400px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-item {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .result-meta {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .error {
+            color: #e74c3c;
+            background: #fdf2f2;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #e74c3c;
+            margin-top: 15px;
+        }
+
+        .success {
+            color: #27ae60;
+            background: #f2f9f2;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+            margin-top: 15px;
+        }
+
+        .suggestions {
+            margin-top: 10px;
+        }
+
+        .suggestion-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .suggestion-tag:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧞‍♂️ DeGenie AI Logo Generator</h1>
+            <p>Create professional logos for your crypto tokens with AI</p>
+        </div>
+
+        <div class="main-content">
+            <div class="form-section">
+                <h2>Generate Logo</h2>
+                <form id="logoForm">
+                    <div class="form-group">
+                        <label for="tokenName">Token Name *</label>
+                        <input type="text" id="tokenName" name="tokenName" required placeholder="e.g., CryptoGenie">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="theme">Theme</label>
+                        <select id="theme" name="theme">
+                            <option value="">Auto-detect</option>
+                            <option value="gaming">Gaming</option>
+                            <option value="defi">DeFi</option>
+                            <option value="nft">NFT</option>
+                            <option value="meme">Meme</option>
+                            <option value="utility">Utility</option>
+                            <option value="community">Community</option>
+                            <option value="innovation">Innovation</option>
+                            <option value="finance">Finance</option>
+                            <option value="art">Art</option>
+                            <option value="tech">Technology</option>
+                        </select>
+                        <div id="themeSuggestions" class="suggestions"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style">Style</label>
+                        <select id="style" name="style">
+                            <option value="modern">Modern</option>
+                            <option value="minimalist">Minimalist</option>
+                            <option value="gradient">Gradient</option>
+                            <option value="crypto">Crypto</option>
+                            <option value="professional">Professional</option>
+                            <option value="playful">Playful</option>
+                            <option value="retro">Retro</option>
+                            <option value="futuristic">Futuristic</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Colors (optional)</label>
+                        <div class="colors-input">
+                            <input type="color" class="color-input" value="#667eea">
+                            <input type="color" class="color-input" value="#764ba2">
+                            <input type="color" class="color-input" value="#f093fb">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="size">Size</label>
+                        <select id="size" name="size">
+                            <option value="512x512">Medium (512x512)</option>
+                            <option value="1024x1024" selected>Large (1024x1024)</option>
+                            <option value="1792x1024">X-Large (1792x1024)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="variations">Number of Variations</label>
+                        <select id="variations" name="variations">
+                            <option value="1" selected>1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn" id="generateBtn">
+                        Generate Logo
+                    </button>
+                </form>
+            </div>
+
+            <div class="results-section">
+                <h2>Results</h2>
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Generating your logo with AI...</p>
+                    <p><small>This may take 30-60 seconds</small></p>
+                </div>
+                <div id="results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('logoForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const generateBtn = document.getElementById('generateBtn');
+        const tokenNameInput = document.getElementById('tokenName');
+        const themeSelect = document.getElementById('theme');
+        const themeSuggestions = document.getElementById('themeSuggestions');
+
+        // Auto-suggest themes when token name changes
+        tokenNameInput.addEventListener('input', debounce(async (e) => {
+            const tokenName = e.target.value.trim();
+            if (tokenName.length > 2) {
+                try {
+                    const response = await fetch('/api/suggest-themes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ tokenName }),
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Theme suggestion failed: ${response.status} ${response.statusText}`);
+                    }
+                    const data = await response.json();
+                    if (data.suggestions) {
+                        displayThemeSuggestions(data.suggestions);
+                    }
+                } catch (error) {
+                    console.error('Theme suggestion failed:', error);
+                }
+            } else {
+                themeSuggestions.innerHTML = '';
+            }
+        }, 500));
+
+        function displayThemeSuggestions(suggestions) {
+            themeSuggestions.innerHTML = '';
+            suggestions.forEach(theme => {
+                const span = document.createElement('span');
+                span.className = 'suggestion-tag';
+                span.textContent = theme;
+                span.addEventListener('click', () => selectTheme(theme));
+                themeSuggestions.appendChild(span);
+            });
+        }
+
+        function selectTheme(theme) {
+            themeSelect.value = theme;
+            themeSuggestions.innerHTML = '';
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Collect form data manually to ensure proper JSON structure
+            const data = {
+                tokenName: form.tokenName.value.trim(),
+                theme: form.theme.value.trim(),
+                style: form.style.value,
+                size: form.size.value,
+                format: form.format.value,
+                variations: parseInt(form.variations.value) || 1
+            };
+            
+            // Collect colors
+            const colorInputs = document.querySelectorAll('.color-input');
+            const colors = Array.from(colorInputs)
+                .map(input => input.value.trim())
+                .filter(color => color.length > 0);
+            
+            if (colors.length > 0) {
+                data.colors = colors;
+            }
+
+            // Show loading with time estimation
+            const variations = parseInt(data.variations) || 1;
+            const estimatedTime = variations === 1 ? '15-30' : `${15 + (variations - 1) * 10}-${30 + (variations - 1) * 15}`;
+            
+            loading.innerHTML = `
+                <div class="spinner"></div>
+                <div class="loading-text">
+                    <h3>🎨 Generating ${variations} logo${variations > 1 ? 's' : ''}...</h3>
+                    <p>Estimated time: ${estimatedTime} seconds</p>
+                    <p class="loading-details">Using AI to create your perfect logo design</p>
+                    <div class="progress-dots">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            `;
+            loading.classList.add('show');
+            results.innerHTML = '';
+            generateBtn.disabled = true;
+            generateBtn.textContent = `Generating ${variations} logo${variations > 1 ? 's' : ''}...`;
+            
+            // Start progress timer
+            let progressSeconds = 0;
+            const progressInterval = setInterval(() => {
+                progressSeconds++;
+                const progressText = loading.querySelector('.loading-details');
+                if (progressText) {
+                    if (progressSeconds < 10) {
+                        progressText.textContent = 'Analyzing your requirements...';
+                    } else if (progressSeconds < 20) {
+                        progressText.textContent = 'Creating AI-generated design...';
+                    } else if (progressSeconds < 30) {
+                        progressText.textContent = 'Adding finishing touches...';
+                    } else {
+                        progressText.textContent = 'Almost ready, finalizing details...';
+                    }
+                }
+            }, 1000);
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    const payload = await response.text();
+                    throw new Error(`Generation failed: ${response.status} ${response.statusText} - ${payload}`);
+                }
+                const result = await response.json();
+                displayResults(result);
+
+            } catch (error) {
+                console.error('Generation failed:', error);
+                results.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> Failed to generate logo. Please try again.
+                        <br><small>${escapeHtml(error.message)}</small>
+                    </div>
+                `;
+            } finally {
+                // Clear progress timer
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+                loading.classList.remove('show');
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Logo';
+            }
+        });
+
+        function displayResults(result) {
+            if (result.variations) {
+                // Multiple variations
+                const successCount = result.successCount || 0;
+                let html = `<div class="success">Generated ${successCount}/${result.count} variations successfully</div>`;
+                
+                result.variations.forEach((variation, index) => {
+                    html += displaySingleResult(variation, `Variation ${index + 1}`);
+                });
+                
+                results.innerHTML = html;
+            } else {
+                // Single result
+                results.innerHTML = displaySingleResult(result);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function displaySingleResult(result, title = 'Generated Logo') {
+            if (result.success) {
+                return `
+                    <div class="result-item">
+                        <h3>${escapeHtml(title)}</h3>
+                        <img src="${escapeHtml(result.logoUrl)}" alt="Generated Logo" />
+                        <div class="result-meta">
+                            <strong>Provider:</strong> ${escapeHtml(result.metadata.provider)}<br>
+                            <strong>Style:</strong> ${escapeHtml(result.metadata.style)}<br>
+                            <strong>Theme:</strong> ${escapeHtml(result.metadata.theme)}<br>
+                            <strong>Generation Time:</strong> ${result.generationTime}ms<br>
+                            <strong>Prompt:</strong> ${escapeHtml(result.metadata.prompt)}
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="result-item">
+                        <h3>${escapeHtml(title)}</h3>
+                        <div class="error">
+                            <strong>Generation Failed:</strong> ${escapeHtml(result.error)}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Load service info on page load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/api/info');
+                if (!response.ok) {
+                    throw new Error(`Service info failed: ${response.status} ${response.statusText}`);
+                }
+                const info = await response.json();
+                console.log('Service Info:', info);
+            } catch (error) {
+                console.error('Failed to load service info:', error);
+            }
+        });
+    </script>
+</body>
+</html>
