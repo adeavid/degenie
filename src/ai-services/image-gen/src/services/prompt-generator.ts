@@ -143,7 +143,16 @@ export class PromptGenerator {
 
   private getRandomEnhancers(count: number, source?: string[]): string[] {
     const enhancers = source || this.template.qualityEnhancers;
-    const shuffled = [...enhancers].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, count);
+    return this.shuffleArray(enhancers).slice(0, count);
+  }
+
+  private shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    // Fisher-Yates shuffle algorithm for better randomness
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }
 }

@@ -3,8 +3,8 @@
  * TypeScript client for interacting with the logo generation API
  */
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { LogoRequest, LogoResponse, AIProvider } from '../types';
+import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import { LogoRequest, LogoResponse, AIProvider, LogoStyle } from '../types';
 
 export interface ApiClientConfig {
   baseUrl?: string;
@@ -29,6 +29,12 @@ export interface ThemeSuggestionsResponse {
   tokenName: string;
   suggestions: string[];
   count: number;
+}
+
+export interface VariationsResponse {
+  variations: LogoResponse[];
+  count: number;
+  successCount: number;
 }
 
 export interface ServiceInfoResponse {
@@ -67,10 +73,16 @@ export class LogoGenerationApiClient {
     // Response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => {
+      (error: AxiosError) => {
         if (error.response) {
           // Server responded with error status
-          throw new Error(`API Error (${error.response.status}): ${error.response.data?.error || error.message}`);
+          throw new Error(
+            `API Error (${error.response.status}): ${
+              typeof error.response.data === 'string'
+                ? error.response.data
+                : error.response.data?.error || error.message
+            }`
+          );
         } else if (error.request) {
           // Request made but no response
           throw new Error('Network Error: No response from server');
@@ -85,8 +97,14 @@ export class LogoGenerationApiClient {
   /**
    * Generate a logo or multiple variations
    */
-  async generateLogo(request: GenerationRequest): Promise<LogoResponse | { variations: LogoResponse[]; count: number; successCount: number }> {
-    const response = await this.makeRequest<any>('POST', '/api/generate', request);
+  async generateLogo(
+    request: GenerationRequest
+  ): Promise<LogoResponse | VariationsResponse> {
+    const response = await this.makeRequest<LogoResponse | VariationsResponse>(
+      'POST',
+      '/api/generate',
+      request
+    );
     return response.data;
   }
 
@@ -110,7 +128,7 @@ export class LogoGenerationApiClient {
    * Get generation history
    */
   async getHistory(limit?: number): Promise<{ history: LogoResponse[]; count: number; limit: number }> {
-    const params = limit ? { limit: limit.toString() } : {};
+    const params = limit ? { limit: limit.toString() } : undefined;
     const response = await this.makeRequest<any>('GET', '/api/history', undefined, params);
     return response.data;
   }
@@ -142,11 +160,15 @@ export class LogoGenerationApiClient {
   /**
    * Convenience method: Generate a simple logo
    */
-  async generateSimpleLogo(tokenName: string, theme?: string, style?: string): Promise<LogoResponse> {
+  async generateSimpleLogo(
+    tokenName: string,
+    theme?: string,
+    style?: LogoStyle
+  ): Promise<LogoResponse> {
     const request: GenerationRequest = {
       tokenName,
       theme,
-      style: style as any,
+      style,
       variations: 1,
     };
 
@@ -249,11 +271,17 @@ export class LogoGenerationApiClient {
         const response = await this.client.request<T>(config);
         return response;
 
-      } catch (error) {
-        lastError = error as Error;
+      } catch (err) {
+        const error = err as AxiosError;
+        lastError = error;
         
-        // Don't retry on client errors (4xx) except for rate limiting (429)
-        if (error.response?.status >= 400 && error.response?.status < 500 && error.response?.status !== 429) {
+        // Abort retries on non-retryable client errors
+        if (
+          error.response &&
+          error.response.status >= 400 &&
+          error.response.status < 500 &&
+          error.response.status !== 429
+        ) {
           throw error;
         }
 
