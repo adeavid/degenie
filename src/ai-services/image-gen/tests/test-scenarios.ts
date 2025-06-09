@@ -6,10 +6,20 @@
 import { LogoGenerationApiClient, createApiClient } from '../src/client/api-client';
 import { LogoStyle, ImageSize, ImageFormat } from '../src/types';
 
+interface LogoGenerationInput {
+  tokenName: string;
+  theme?: string;
+  style?: LogoStyle;
+  colors?: string[];
+  size?: ImageSize;
+  format?: ImageFormat;
+  variations?: number;
+}
+
 export interface TestScenario {
   name: string;
   description: string;
-  input: any;
+  input: Partial<LogoGenerationInput>;
   expectedBehavior: 'success' | 'error' | 'partial';
   category: 'basic' | 'edge-case' | 'stress' | 'validation';
 }
@@ -364,12 +374,18 @@ export class TestRunner {
       
       let result;
       if (scenario.input.variations && scenario.input.variations > 1) {
+        if (!scenario.input.tokenName) {
+          throw new Error('Token name is required for variations');
+        }
         result = await this.client.generateVariations(
           scenario.input.tokenName,
           scenario.input.variations,
           scenario.input
         );
       } else {
+        if (!scenario.input.tokenName) {
+          throw new Error('Token name is required');
+        }
         result = await this.client.generateSimpleLogo(
           scenario.input.tokenName,
           scenario.input.theme,

@@ -124,7 +124,7 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<void> => 
 
     let result;
 
-    if (variations > 1) {
+    if (validatedVariations > 1) {
       // Generate multiple variations
       const results = await logoGenerator.generateVariations(logoRequest, validatedVariations);
       result = {
