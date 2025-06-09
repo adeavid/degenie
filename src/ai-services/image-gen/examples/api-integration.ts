@@ -6,6 +6,13 @@
 import { LogoGenerationApiClient, createApiClient } from '../src/client/api-client';
 import { LogoStyle, ImageSize } from '../src/types';
 
+/**
+ * Demonstrates comprehensive usage examples of the DeGenie Logo Generation API client.
+ *
+ * Runs a sequence of integration scenarios including connection testing, service information retrieval, simple and advanced logo generation (with auto-theme detection, multiple variations, and custom options), usage statistics, and generation history. Each example logs results and handles errors for clarity.
+ *
+ * @remark This function is intended for demonstration and integration testing purposes, and logs output directly to the console.
+ */
 async function apiIntegrationExamples() {
   console.log('🧞‍♂️ DeGenie Logo Generation API Integration Examples\n');
 
@@ -176,7 +183,11 @@ async function apiIntegrationExamples() {
   }
 }
 
-// Integration test function
+/**
+ * Runs an integration test suite for the DeGenie Logo Generation API client.
+ *
+ * Performs health checks, retrieves service information, suggests themes, and attempts a simple logo generation to verify API connectivity and functionality. Logs the outcome of each test step to the console.
+ */
 async function integrationTest() {
   console.log('\n🧪 Running integration test...\n');
 

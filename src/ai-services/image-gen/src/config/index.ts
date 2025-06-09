@@ -89,6 +89,13 @@ export const config: Config = {
   },
 };
 
+/**
+ * Validates the current configuration for the DeGenie Logo Generation Service.
+ *
+ * Checks for required API keys, valid numeric ranges, logical consistency in rate limiting, and ensures default and fallback AI providers are not the same.
+ *
+ * @returns An object containing a boolean indicating if the configuration is valid and an array of error messages describing any validation failures.
+ */
 export function validateConfig(): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 

@@ -7,6 +7,14 @@
 
 import { TestRunner, testScenarios } from './test-scenarios';
 
+/**
+ * Entry point for the DeGenie Logo Generation API test runner CLI.
+ *
+ * Parses command-line arguments to determine the test mode and API base URL, then executes the corresponding test suite or utility function. Supports running all tests, category-specific tests, quick tests, single scenario tests, connection checks, listing scenarios, and displaying help.
+ *
+ * @remark
+ * Exits the process with a non-zero status code on error or invalid usage.
+ */
 async function main() {
   const args = process.argv.slice(2);
   const mode = args[0] || 'all';
@@ -81,6 +89,13 @@ async function main() {
   }
 }
 
+/**
+ * Runs all test scenarios belonging to a specified category using the provided test runner.
+ *
+ * Filters available test scenarios by the given category, verifies API connectivity, executes each scenario, and generates a test report.
+ *
+ * @param category - The category of test scenarios to run (e.g., 'basic', 'validation', 'edge-case', 'stress').
+ */
 async function runCategoryTests(runner: TestRunner, category: string) {
   console.log(`📋 Running ${category.toUpperCase()} tests only...\n`);
   
@@ -107,6 +122,11 @@ async function runCategoryTests(runner: TestRunner, category: string) {
   runner['generateReport']();
 }
 
+/**
+ * Runs a quick subset of up to five 'basic' and 'validation' test scenarios against the API.
+ *
+ * Connects to the API server, executes selected scenarios, and logs a summary of results.
+ */
 async function runQuickTests(runner: TestRunner) {
   console.log('⚡ Running quick test suite (basic scenarios only)...\n');
   
@@ -134,6 +154,13 @@ async function runQuickTests(runner: TestRunner) {
   console.log(`\n⚡ Quick test completed: ${passed}/${total} passed\n`);
 }
 
+/**
+ * Runs a single test scenario matching the provided name against the API.
+ *
+ * Searches for a scenario whose name includes {@link scenarioName} (case-insensitive), verifies API connectivity, executes the test, and logs the result.
+ *
+ * @param scenarioName - Partial or full name of the scenario to run.
+ */
 async function runSingleScenario(runner: TestRunner, scenarioName: string) {
   const scenario = testScenarios.find(s => 
     s.name.toLowerCase().includes(scenarioName.toLowerCase())
@@ -168,6 +195,13 @@ async function runSingleScenario(runner: TestRunner, scenarioName: string) {
   }
 }
 
+/**
+ * Tests connectivity and basic functionality of the API server at the specified base URL.
+ *
+ * Performs health checks, retrieves service information, and verifies theme suggestion capability. Logs results and troubleshooting tips on failure.
+ *
+ * @param baseUrl - The base URL of the API server to test.
+ */
 async function testConnection(baseUrl: string) {
   console.log('🔌 Testing API connection...\n');
   
@@ -204,6 +238,11 @@ async function testConnection(baseUrl: string) {
   }
 }
 
+/**
+ * Displays all available test scenarios grouped by category.
+ *
+ * Lists each scenario's name and description under its respective category.
+ */
 function listScenarios() {
   console.log('\n📋 Available test scenarios:\n');
   
@@ -219,6 +258,9 @@ function listScenarios() {
   }
 }
 
+/**
+ * Displays usage instructions and available command-line modes for the DeGenie Logo Generation Test Suite.
+ */
 function showHelp() {
   console.log(`
 🧞‍♂️ DeGenie Logo Generation Test Suite

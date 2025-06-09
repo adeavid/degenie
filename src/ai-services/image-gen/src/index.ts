@@ -15,7 +15,11 @@ import { LogoGenerator } from './services/logo-generator';
 import { validateConfig } from './config';
 
 /**
- * Create a new logo generator instance with configuration validation
+ * Creates a new {@link LogoGenerator} instance after validating the configuration.
+ *
+ * @returns A configured {@link LogoGenerator} instance.
+ *
+ * @throws {Error} If configuration validation fails, listing the validation errors.
  */
 export function createLogoGenerator(): LogoGenerator {
   const validation = validateConfig();
@@ -27,7 +31,14 @@ export function createLogoGenerator(): LogoGenerator {
 }
 
 /**
- * Quick logo generation function for simple use cases
+ * Generates an AI-powered logo for the specified token name and optional theme.
+ *
+ * @param tokenName - The name of the token for which to generate a logo. Must be a non-empty string.
+ * @param theme - An optional theme to influence the logo's style.
+ * @returns A promise that resolves to the generated logo result.
+ *
+ * @throws {Error} If {@link tokenName} is missing, not a string, or an empty string.
+ * @throws {Error} If {@link theme} is provided but is not a string.
  */
 export async function generateLogo(tokenName: string, theme?: string) {
   if (!tokenName || typeof tokenName !== 'string' || tokenName.trim().length === 0) {

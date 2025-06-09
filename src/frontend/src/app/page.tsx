@@ -1,5 +1,10 @@
 import { Header, Footer, Button, Card, Input } from '@/components';
 
+/**
+ * Renders the homepage layout for the AI-powered cryptocurrency token creation platform.
+ *
+ * Displays a full-page interface with a header, hero section, feature highlights, call-to-action area, and footer. The page introduces the platform's capabilities, showcases key features, and encourages users to launch their own token.
+ */
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">

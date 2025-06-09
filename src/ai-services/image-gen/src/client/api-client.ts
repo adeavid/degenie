@@ -326,7 +326,12 @@ export class LogoGenerationApiClient {
   }
 }
 
-// Factory function for easy instantiation
+/**
+ * Creates and returns a new instance of {@link LogoGenerationApiClient} with optional configuration.
+ *
+ * @param config - Optional client configuration including base URL, timeout, API key, and retry attempts.
+ * @returns A configured {@link LogoGenerationApiClient} instance.
+ */
 export function createApiClient(config?: ApiClientConfig): LogoGenerationApiClient {
   return new LogoGenerationApiClient(config);
 }

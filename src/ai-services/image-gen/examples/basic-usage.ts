@@ -4,6 +4,13 @@
 
 import { LogoGenerator, LogoStyle, ImageSize, AIProvider } from '../src';
 
+/**
+ * Demonstrates basic usage scenarios of the DeGenie Logo Generator.
+ *
+ * Runs a series of asynchronous examples showcasing logo generation with various options, generating multiple logo variations, retrieving theme suggestions, and fetching usage statistics. Logs the outcome and relevant details for each example.
+ *
+ * @remark Intended for demonstration and testing purposes.
+ */
 async function examples() {
   console.log('🧞‍♂️ DeGenie Logo Generator Examples\n');
 
