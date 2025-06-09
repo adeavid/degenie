@@ -30,9 +30,17 @@ export function createLogoGenerator(): LogoGenerator {
  * Quick logo generation function for simple use cases
  */
 export async function generateLogo(tokenName: string, theme?: string) {
+  if (!tokenName || typeof tokenName !== 'string' || tokenName.trim().length === 0) {
+    throw new Error('Token name is required and must be a non-empty string');
+  }
+
+  if (theme && typeof theme !== 'string') {
+    throw new Error('Theme must be a string if provided');
+  }
+
   const generator = createLogoGenerator();
   return await generator.generateLogo({
-    tokenName,
+    tokenName: tokenName.trim(),
     theme,
   });
 }

@@ -360,9 +360,14 @@
         }, 500));
 
         function displayThemeSuggestions(suggestions) {
-            themeSuggestions.innerHTML = suggestions.map(theme => 
-                `<span class="suggestion-tag" onclick="selectTheme('${theme}')">${theme}</span>`
-            ).join('');
+            themeSuggestions.innerHTML = '';
+            suggestions.forEach(theme => {
+                const span = document.createElement('span');
+                span.className = 'suggestion-tag';
+                span.textContent = theme;
+                span.addEventListener('click', () => selectTheme(theme));
+                themeSuggestions.appendChild(span);
+            });
         }
 
         function selectTheme(theme) {
@@ -434,27 +439,33 @@
             }
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         function displaySingleResult(result, title = 'Generated Logo') {
             if (result.success) {
                 return `
                     <div class="result-item">
-                        <h3>${title}</h3>
-                        <img src="${result.logoUrl}" alt="Generated Logo" />
+                        <h3>${escapeHtml(title)}</h3>
+                        <img src="${escapeHtml(result.logoUrl)}" alt="Generated Logo" />
                         <div class="result-meta">
-                            <strong>Provider:</strong> ${result.metadata.provider}<br>
-                            <strong>Style:</strong> ${result.metadata.style}<br>
-                            <strong>Theme:</strong> ${result.metadata.theme}<br>
+                            <strong>Provider:</strong> ${escapeHtml(result.metadata.provider)}<br>
+                            <strong>Style:</strong> ${escapeHtml(result.metadata.style)}<br>
+                            <strong>Theme:</strong> ${escapeHtml(result.metadata.theme)}<br>
                             <strong>Generation Time:</strong> ${result.generationTime}ms<br>
-                            <strong>Prompt:</strong> ${result.metadata.prompt}
+                            <strong>Prompt:</strong> ${escapeHtml(result.metadata.prompt)}
                         </div>
                     </div>
                 `;
             } else {
                 return `
                     <div class="result-item">
-                        <h3>${title}</h3>
+                        <h3>${escapeHtml(title)}</h3>
                         <div class="error">
-                            <strong>Generation Failed:</strong> ${result.error}
+                            <strong>Generation Failed:</strong> ${escapeHtml(result.error)}
                         </div>
                     </div>
                 `;
