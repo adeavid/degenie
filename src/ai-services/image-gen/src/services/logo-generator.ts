@@ -212,7 +212,7 @@ export class LogoGenerator {
 
     // Generate filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const sanitized = request.tokenName.replace(/[^a-zA-Z0-9\\-_]/g, '_').slice(0, 50);
+    const sanitized = request.tokenName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
     const ext = request.format?.toLowerCase() ?? 'png';
     const filename = `${sanitized}_${timestamp}_${provider}.${ext}`;
     const filepath = path.join(config.general.outputPath, filename);
