@@ -4,10 +4,22 @@
 echo "🧞‍♂️ DeGenie Token Creator - Deployment Script"
 echo "============================================="
 
-# Check if Solana CLI is installed
+# Check if required tools are installed
 if ! command -v solana &> /dev/null; then
     echo "❌ Solana CLI not found. Please install Solana CLI first."
     echo "   Run: sh -c \"\$(curl -sSfL https://release.solana.com/v1.18.0/install)\""
+    exit 1
+fi
+
+if ! command -v bc &> /dev/null; then
+    echo "❌ bc command not found. Please install bc for arithmetic operations."
+    echo "   Run: brew install bc (macOS) or apt-get install bc (Ubuntu)"
+    exit 1
+fi
+
+if ! command -v jq &> /dev/null; then
+    echo "❌ jq command not found. Please install jq for JSON processing."
+    echo "   Run: brew install jq (macOS) or apt-get install jq (Ubuntu)"
     exit 1
 fi
 
@@ -41,7 +53,11 @@ fi
 
 # Build the program
 echo "🔨 Building Anchor program..."
-cd "$(dirname "$0")/.."
+DEPLOY_DIR="$(dirname "$0")/.."
+if ! cd "$DEPLOY_DIR"; then
+    echo "❌ Failed to change to directory: $DEPLOY_DIR"
+    exit 1
+fi
 anchor build
 
 if [ $? -ne 0 ]; then

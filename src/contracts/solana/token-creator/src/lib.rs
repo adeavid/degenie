@@ -360,10 +360,14 @@ pub struct MintTokens<'info> {
     
     #[account(
         mut,
-        constraint = destination.mint == mint.key() @ TokenCreatorError::InvalidAmount
+        constraint = destination.mint == mint.key() @ TokenCreatorError::InvalidAmount,
+        constraint = destination.owner == authority.key() @ TokenCreatorError::InsufficientAuthority
     )]
     pub destination: Account<'info, TokenAccount>,
     
+    #[account(
+        constraint = authority.key() == mint.mint_authority.unwrap() @ TokenCreatorError::InsufficientAuthority
+    )]
     pub authority: Signer<'info>,
     pub token_program: Program<'info, Token>,
 }

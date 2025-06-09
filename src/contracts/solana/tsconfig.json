@@ -20,7 +20,9 @@
     "tests/**/*",
     "app/**/*",
     "scripts/**/*",
-    "migrations/**/*"
+    "migrations/**/*",
+    "src/**/*",
+    "token-creator/src/**/*"
   ],
   "exclude": [
     "node_modules",

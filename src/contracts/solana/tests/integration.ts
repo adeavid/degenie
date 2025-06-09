@@ -42,6 +42,20 @@ describe("🧞‍♂️ DeGenie Token Creator - Integration Tests", () => {
     );
   });
 
+  afterEach(async () => {
+    // Cleanup test accounts to prevent conflicts
+    try {
+      // Note: In production, cleanup might involve closing accounts
+      // For testing, we'll just clear the references
+      mint = null;
+      treasury = null;
+      bondingCurve = null;
+      userTokenAccount = null;
+    } catch (error) {
+      console.warn("Cleanup warning:", error.message);
+    }
+  });
+
   describe("🔧 Token Creation", () => {
     it("Should create a new token with metadata", async () => {
       console.log("Creating token:", testTokenName);

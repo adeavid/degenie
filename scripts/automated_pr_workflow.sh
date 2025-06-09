@@ -85,7 +85,9 @@ fi
 echo "🔍 Checking for CodeRabbit comments..."
 sleep 10  # Give CodeRabbit time to analyze
 
-COMMENTS_OUTPUT=$(gh pr view "$PR_NUMBER" --comments --json comments --jq '.comments[] | select(.author.login == "coderabbitai") | .body')
+REPO_OWNER=$(gh repo view --json owner --jq '.owner.login')
+REPO_NAME=$(gh repo view --json name --jq '.name')
+COMMENTS_OUTPUT=$(gh pr view "$PR_NUMBER" --repo "$REPO_OWNER/$REPO_NAME" --comments --json comments --jq '.comments[] | select(.author.login == "coderabbitai") | .body')
 
 if [[ -n "$COMMENTS_OUTPUT" ]]; then
     echo "🐰 CodeRabbit has provided feedback:"
@@ -122,7 +124,7 @@ fi
 
 # Check if PR is mergeable
 echo "🔍 Checking if PR is ready to merge..."
-PR_STATUS=$(gh pr view "$PR_NUMBER" --json mergeable,mergeStateStatus --jq '.mergeable,.mergeStateStatus')
+PR_STATUS=$(gh pr view "$PR_NUMBER" --repo "$REPO_OWNER/$REPO_NAME" --json mergeable,mergeStateStatus --jq '.mergeable,.mergeStateStatus')
 
 if echo "$PR_STATUS" | grep -q "MERGEABLE\|CLEAN"; then
     echo "✅ PR is ready to merge!"
@@ -133,7 +135,7 @@ if echo "$PR_STATUS" | grep -q "MERGEABLE\|CLEAN"; then
     if [[ "$AUTO_MERGE" =~ ^[Yy]$ ]]; then
         echo "🔀 Merging PR..."
         
-        gh pr merge "$PR_NUMBER" --squash --delete-branch \
+        gh pr merge "$PR_NUMBER" --repo "$REPO_OWNER/$REPO_NAME" --squash --delete-branch \
             --subject "feat: implement complete Solana token creation smart contract" \
             --body "Complete implementation of Solana smart contract with bonding curves and SPL Token Standard compliance. All tests passing and ready for production."
             
