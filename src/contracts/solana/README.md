@@ -12,6 +12,8 @@ The main contract for creating AI-powered tokens on the Solana blockchain.
 - **Metadata Integration**: Automatic metadata creation with AI-generated assets
 - **Bonding Curve Support**: Built-in minting functionality for price curves
 - **Anchor Framework**: Modern Solana development with Anchor
+- **Anti-Dump Protection**: Safeguards against large-scale token sell-offs
+- **Maximum Supply Enforcement**: Enforces a hard cap on total token supply
 
 ### Development Setup
 
