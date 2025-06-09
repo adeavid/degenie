@@ -347,7 +347,10 @@
                         body: JSON.stringify({ tokenName }),
                     });
                     
-                    if (!response.ok) {\n                        throw new Error(`Theme suggestion failed: ${response.status} ${response.statusText}`);\n                    }\n                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(`Theme suggestion failed: ${response.status} ${response.statusText}`);
+                    }
+                    const data = await response.json();
                     if (data.suggestions) {
                         displayThemeSuggestions(data.suggestions);
                     }
@@ -438,7 +441,11 @@
                     body: JSON.stringify(data),
                 });
 
-                if (!response.ok) {\n                    const payload = await response.text();\n                    throw new Error(`Generation failed: ${response.status} ${response.statusText} - ${payload}`);\n                }\n                const result = await response.json();
+                if (!response.ok) {
+                    const payload = await response.text();
+                    throw new Error(`Generation failed: ${response.status} ${response.statusText} - ${payload}`);
+                }
+                const result = await response.json();
                 displayResults(result);
 
             } catch (error) {
