@@ -1,6 +1,29 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header, Footer, Button, Card, Input } from '@/components';
 
 export default function Home() {
+  const router = useRouter();
+  const [tokenName, setTokenName] = useState('');
+
+  const handleLaunchToken = () => {
+    router.push('/create');
+  };
+
+  const handleViewDemo = () => {
+    // Open demo modal or navigate to demo page
+    router.push('/demo');
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (tokenName.trim()) {
+      router.push(`/create?name=${encodeURIComponent(tokenName)}`);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -9,7 +32,7 @@ export default function Home() {
         {/* Hero Section */}
         <section className="py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-6">
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-6">
               From Idea to Viral Token in{' '}
               <span className="text-blue-600">60 Seconds</span>
             </h1>
@@ -18,8 +41,12 @@ export default function Home() {
               marketing, and technical aspects for your next meme coin launch.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg">Launch Your Token</Button>
-              <Button variant="outline" size="lg">View Demo</Button>
+              <Button size="lg" onClick={handleLaunchToken}>
+                Launch Your Token
+              </Button>
+              <Button variant="outline" size="lg" onClick={handleViewDemo}>
+                View Demo
+              </Button>
             </div>
           </div>
         </section>
@@ -34,7 +61,7 @@ export default function Home() {
               <Card>
                 <div className="text-center">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-blue-600 text-xl font-bold">AI</span>
+                    <span className="text-blue-600 text-xl font-bold" aria-label="Artificial Intelligence">AI</span>
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                     AI-Generated Assets
@@ -86,13 +113,19 @@ export default function Home() {
               Join thousands of creators who have already launched successful tokens with DeGenie.
             </p>
             <div className="max-w-md mx-auto">
-              <div className="flex gap-4">
-                <Input 
-                  placeholder="Enter your token name"
-                  className="flex-1"
-                />
-                <Button variant="secondary">Get Started</Button>
-              </div>
+              <form onSubmit={handleFormSubmit}>
+                <div className="flex gap-4">
+                  <Input 
+                    placeholder="Enter your token name"
+                    className="flex-1"
+                    name="tokenName"
+                    value={tokenName}
+                    onChange={(e) => setTokenName(e.target.value)}
+                    required
+                  />
+                  <Button type="submit" variant="secondary">Get Started</Button>
+                </div>
+              </form>
             </div>
           </div>
         </section>

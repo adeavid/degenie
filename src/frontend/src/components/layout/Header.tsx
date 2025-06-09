@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
 export const Header: React.FC = () => {
@@ -18,15 +19,15 @@ export const Header: React.FC = () => {
           
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors">
+            <Link href="/create" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors">
               Create Token
-            </a>
-            <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors">
+            </Link>
+            <Link href="/dashboard" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors">
               Dashboard
-            </a>
-            <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors">
+            </Link>
+            <Link href="/marketplace" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors">
               Marketplace
-            </a>
+            </Link>
           </nav>
           
           {/* Actions */}

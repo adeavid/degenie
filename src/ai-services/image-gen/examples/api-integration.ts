@@ -3,16 +3,20 @@
  * Shows how to use the API client for various scenarios
  */
 
+import dotenv from 'dotenv';
 import { LogoGenerationApiClient, createApiClient } from '../src/client/api-client';
 import { LogoStyle, ImageSize } from '../src/types';
+
+// Load environment variables
+dotenv.config();
 
 async function apiIntegrationExamples() {
   console.log('🧞‍♂️ DeGenie Logo Generation API Integration Examples\n');
 
   // Create API client
   const client = createApiClient({
-    baseUrl: 'http://localhost:3001',
-    timeout: 120000, // 2 minutes for AI generation
+    baseUrl: process.env.DEGENIE_API_URL || 'http://localhost:3001',
+    timeout: parseInt(process.env.DEGENIE_API_TIMEOUT || '120000'), // 2 minutes for AI generation
   });
 
   try {

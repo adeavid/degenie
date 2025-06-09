@@ -28,21 +28,21 @@ export class MockTestRunner {
   private setupMockApiKeys() {
     // Ensure at least one API key is set for LogoGenerator initialization
     if (!config.openai.apiKey && !config.stabilityAI.apiKey) {
-      // Set a dummy API key for testing
-      (config.openai as any).apiKey = 'test-key-for-mocking';
+      // Set a dummy API key via environment variable for testing
+      process.env.OPENAI_API_KEY = 'test-key-for-mocking';
     }
   }
 
   async runAllMockTests(): Promise<void> {
     console.log('🧪 Running mock tests (no API keys required)...\n');
 
-    const tests = [
-      () => this.testPromptGeneration(),
-      () => this.testThemeSuggestions(),
-      () => this.testConfigValidation(),
-      () => this.testInputValidation(),
-      () => this.testServiceInitialization(),
-      () => this.testEdgeCases(),
+    const tests: Array<() => Promise<void>> = [
+      this.testPromptGeneration.bind(this),
+      this.testThemeSuggestions.bind(this),
+      this.testConfigValidation.bind(this),
+      this.testInputValidation.bind(this),
+      this.testServiceInitialization.bind(this),
+      this.testEdgeCases.bind(this),
     ];
 
     for (const test of tests) {

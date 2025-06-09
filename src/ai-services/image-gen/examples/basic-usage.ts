@@ -2,7 +2,8 @@
  * DeGenie Logo Generator - Basic Usage Examples
  */
 
-import { LogoGenerator, LogoStyle, ImageSize, AIProvider } from '../src';
+import { LogoGenerator } from '../src';
+import type { LogoStyle, ImageSize, AIProvider } from '../src/types';
 
 async function examples() {
   console.log('🧞‍♂️ DeGenie Logo Generator Examples\n');

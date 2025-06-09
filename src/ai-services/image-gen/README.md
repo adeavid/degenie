@@ -18,37 +18,37 @@ AI-powered logo generation service for the DeGenie token creation platform. Crea
 
 ### 1. Installation
 
-```textbash
+```bash
 cd src/ai-services/image-gen
 npm install
-```text
+```
 
 ### 2. Configuration
 
 Copy the environment template and add your API keys:
 
-```textbash
+```bash
 cp .env.example .env
-```text
+```
 
 Edit `.env` with your API keys:
 
-```textenv
+```env
 OPENAI_API_KEY=your_openai_api_key_here
 STABILITY_API_KEY=your_stability_api_key_here
-```text
+```
 
 ### 3. Start the Server
 
-```textbash
+```bash
 npm run dev:server
-```text
+```
 
 The API server will start on `http://localhost:3001`
 
 ### 4. Test the Service
 
-```textbash
+```bash
 # Run mock tests (no API keys required)
 npm run test:mock
 
@@ -58,7 +58,7 @@ npm run test:scenarios
 # Test specific scenarios
 npm run test:scenarios basic
 npm run test:scenarios connection
-```text
+```
 
 ## Usage
 
@@ -68,7 +68,7 @@ Visit `http://localhost:3001` for the interactive web interface.
 
 ### API Client
 
-```texttypescript
+```typescript
 import { createApiClient } from './src/client/api-client';
 
 const client = createApiClient();
@@ -81,11 +81,11 @@ const autoLogo = await client.generateWithAutoTheme('GameFi');
 
 // Generate multiple variations
 const variations = await client.generateVariations('DeFiToken', 3);
-```text
+```
 
 ### REST API
 
-```textbash
+```bash
 # Generate a logo
 curl -X POST http://localhost:3001/api/generate \
   -H "Content-Type: application/json" \
@@ -101,7 +101,7 @@ curl -X POST http://localhost:3001/api/generate \
 curl -X POST http://localhost:3001/api/suggest-themes \
   -H "Content-Type: application/json" \
   -d '{"tokenName": "GameToken"}'
-```text
+```
 
 ## API Endpoints
 
@@ -117,14 +117,14 @@ curl -X POST http://localhost:3001/api/suggest-themes \
 ### Mock Tests (No API Keys)
 Tests core functionality without making API calls:
 
-```textbash
+```bash
 npm run test:mock
-```text
+```
 
 ### Integration Tests
 Comprehensive testing with various input scenarios:
 
-```textbash
+```bash
 # Run all tests
 npm run test:scenarios
 
@@ -139,14 +139,14 @@ npm run test:scenarios single "crypto token"
 
 # Test connection only
 npm run test:scenarios connection
-```text
+```
 
 ### API Integration Examples
 Run real API integration examples:
 
-```textbash
+```bash
 npm run test:integration
-```text
+```
 
 ## Available Themes
 
@@ -215,22 +215,22 @@ The service includes comprehensive error handling:
 
 ### Build
 
-```textbash
+```bash
 npm run build
-```text
+```
 
 ### Linting
 
-```textbash
+```bash
 npm run lint
 npm run lint:fix
-```text
+```
 
 ### Development Server
 
-```textbash
+```bash
 npm run dev:server
-```text
+```
 
 ## Environment Variables
 

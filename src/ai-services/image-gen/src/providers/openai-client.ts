@@ -5,12 +5,12 @@
 import OpenAI from 'openai';
 import { config } from '../config';
 import { LogoRequest, LogoResponse, AIProvider, ImageSize } from '../types';
-import { v4 as uuidv4 } from 'uuid';
 
 export class OpenAIClient {
   private client: OpenAI;
   private requestCount: number = 0;
   private lastRequestTime: number = 0;
+  private rateLimitMutex: Promise<void> = Promise.resolve();
 
   constructor() {
     if (!config.openai.apiKey) {
@@ -48,7 +48,7 @@ export class OpenAIClient {
         response_format: "url",
       });
 
-      const imageUrl = response.data[0]?.url;
+      const imageUrl = response.data?.[0]?.url;
       if (!imageUrl) {
         throw new Error('No image URL returned from OpenAI');
       }
@@ -95,18 +95,23 @@ export class OpenAIClient {
   }
 
   private async checkRateLimit(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
+    // Use mutex to prevent race conditions
+    this.rateLimitMutex = this.rateLimitMutex.then(async () => {
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
 
-    // Simple rate limiting: minimum 6 seconds between requests
-    if (timeSinceLastRequest < 6000) {
-      const waitTime = 6000 - timeSinceLastRequest;
-      console.log(`⏳ Rate limiting: waiting ${waitTime}ms...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
+      // Simple rate limiting: minimum 6 seconds between requests
+      if (timeSinceLastRequest < 6000) {
+        const waitTime = 6000 - timeSinceLastRequest;
+        console.log(`⏳ Rate limiting: waiting ${waitTime}ms...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
 
-    this.lastRequestTime = Date.now();
-    this.requestCount++;
+      this.lastRequestTime = Date.now();
+      this.requestCount++;
+    });
+    
+    await this.rateLimitMutex;
   }
 
   private convertSizeForOpenAI(size: ImageSize): "256x256" | "512x512" | "1024x1024" | "1792x1024" | "1024x1792" {

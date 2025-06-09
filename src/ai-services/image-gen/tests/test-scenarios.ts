@@ -313,6 +313,15 @@ export class TestRunner {
     });
   }
 
+  // Public wrapper methods for accessing private functionality
+  public async testConnection(): Promise<boolean> {
+    return this.client.testConnection();
+  }
+
+  public async runScenario(scenario: TestScenario): Promise<void> {
+    return this.runSingleTest(scenario);
+  }
+
   async runAllTests(): Promise<void> {
     console.log('🧪 Starting comprehensive logo generation tests...\n');
 

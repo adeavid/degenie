@@ -96,6 +96,10 @@ export function validateConfig(): { isValid: boolean; errors: string[] } {
     errors.push('OpenAI API key is required when using OpenAI as default provider');
   }
 
+  if (!config.stabilityAI.apiKey && config.general.defaultProvider === AIProvider.STABILITY_AI) {
+    errors.push('Stability AI API key is required when using Stability AI as default provider');
+  }
+
   if (!config.stabilityAI.apiKey && config.general.fallbackProvider === AIProvider.STABILITY_AI) {
     errors.push('Stability AI API key is required when using Stability AI as fallback provider');
   }

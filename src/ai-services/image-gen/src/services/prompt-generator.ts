@@ -71,8 +71,15 @@ export class PromptGenerator {
     }
 
     // Validate colors if provided
-    if (colors && (!Array.isArray(colors) || colors.some(color => typeof color !== 'string'))) {
-      throw new Error('Colors must be an array of strings');
+    if (colors) {
+      if (!Array.isArray(colors)) {
+        throw new Error('Colors must be an array');
+      }
+      const hexColorRegex = /^#[0-9A-Fa-f]{6}$/;
+      const invalidColors = colors.filter(color => !hexColorRegex.test(color));
+      if (invalidColors.length > 0) {
+        throw new Error(`Invalid color format: ${invalidColors.join(', ')}. Please use hex format (e.g., #FF5733)`);
+      }
     }
 
     let prompt = this.template.base.replace('{tokenName}', tokenName);
@@ -133,10 +140,11 @@ export class PromptGenerator {
       };
     }
 
-    if (!/^[a-zA-Z0-9\s]+$/.test(tokenName)) {
+    // Allow Unicode letters, numbers, spaces, and common symbols
+    if (!/^[\p{L}\p{N}\s\-_.&]+$/u.test(tokenName)) {
       return { 
         isValid: false, 
-        suggestion: 'Token name should only contain letters, numbers, and spaces' 
+        suggestion: 'Token name contains invalid characters. Use letters, numbers, spaces, hyphens, underscores, dots, or ampersands.' 
       };
     }
 

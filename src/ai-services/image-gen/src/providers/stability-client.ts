@@ -133,15 +133,15 @@ export class StabilityClient {
   private convertSizeForStability(size: ImageSize): { width: number; height: number } {
     switch (size) {
       case ImageSize.SMALL:
-        return { width: 512, height: 512 };
+        return { width: 256, height: 256 };
       case ImageSize.MEDIUM:
-        return { width: 768, height: 768 };
+        return { width: 512, height: 512 };
       case ImageSize.LARGE:
         return { width: 1024, height: 1024 };
       case ImageSize.XLARGE:
-        return { width: 1152, height: 896 };
+        return { width: 1792, height: 1024 };
       default:
-        return { width: 1024, height: 1024 };
+        return { width: 512, height: 512 };
     }
   }
 
@@ -184,7 +184,7 @@ export class StabilityClient {
       provider: AIProvider.STABILITY_AI,
       requestCount: this.requestCount,
       lastRequestTime: this.lastRequestTime,
-      rateLimitInfo: `Minimum 10 seconds between requests`,
+      rateLimitInfo: 'Minimum 10 seconds between requests',
     };
   }
 }
