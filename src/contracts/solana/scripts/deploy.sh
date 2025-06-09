@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # DeGenie Solana Contract Deployment Script
 echo "🧞‍♂️ DeGenie Token Creator - Deployment Script"

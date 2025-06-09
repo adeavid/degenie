@@ -4,7 +4,7 @@ This directory contains the Solana smart contracts for the DeGenie platform.
 
 ## Token Creator Contract
 
-The main contract for creating AI-powered tokens on Solana blockchain.
+The main contract for creating AI-powered tokens on the Solana blockchain.
 
 ### Features
 
