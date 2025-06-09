@@ -1,0 +1,62 @@
+{
+  "name": "degenie-solana-contracts",
+  "version": "0.1.0",
+  "description": "DeGenie AI-powered token creation smart contracts for Solana",
+  "main": "index.js",
+  "scripts": {
+    "build": "anchor build",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:devnet": "anchor deploy --provider.cluster devnet",
+    "deploy:testnet": "anchor deploy --provider.cluster testnet",
+    "test": "anchor test",
+    "test:devnet": "anchor test --provider.cluster devnet",
+    "test:local": "anchor test --skip-local-validator",
+    "lint": "eslint . --ext .ts,.js",
+    "format": "prettier --write .",
+    "clean": "anchor clean",
+    "keypair": "solana-keygen new --outfile ~/.config/solana/id.json",
+    "airdrop": "solana airdrop 2",
+    "balance": "solana balance",
+    "cluster:devnet": "solana config set --url devnet",
+    "cluster:testnet": "solana config set --url testnet",
+    "cluster:mainnet": "solana config set --url mainnet-beta",
+    "validate": "node scripts/testnet-validation.js"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/web3.js": "^1.95.4",
+    "@solana/spl-token": "^0.4.6"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^9.1.0",
+    "@typescript-eslint/eslint-plugin": "^5.57.0",
+    "@typescript-eslint/parser": "^5.57.0",
+    "chai": "^4.3.6",
+    "eslint": "^8.37.0",
+    "mocha": "^9.2.2",
+    "prettier": "^2.8.7",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^4.9.5"
+  },
+  "keywords": [
+    "solana",
+    "blockchain",
+    "smart-contracts",
+    "anchor",
+    "token-creation",
+    "ai",
+    "defi",
+    "bonding-curve"
+  ],
+  "author": "DeGenie Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adeavid/degenie.git"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
