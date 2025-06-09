@@ -6,7 +6,6 @@
  */
 
 import { TestRunner, testScenarios } from './test-scenarios';
-import { createApiClient } from '../src/client/api-client';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -51,7 +50,7 @@ async function main() {
         await testConnection(baseUrl);
         break;
         
-      case 'single':
+      case 'single': {
         const scenarioName = args[2];
         if (!scenarioName) {
           console.error('❌ Please specify scenario name for single test');
@@ -60,6 +59,7 @@ async function main() {
         }
         await runSingleScenario(runner, scenarioName);
         break;
+      }
         
       case 'list':
         listScenarios();

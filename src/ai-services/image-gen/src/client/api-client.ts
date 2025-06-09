@@ -18,12 +18,6 @@ export interface GenerationRequest extends LogoRequest {
   provider?: AIProvider;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  code?: string;
-}
 
 export interface ThemeSuggestionsResponse {
   tokenName: string;
@@ -53,7 +47,7 @@ export class LogoGenerationApiClient {
 
   constructor(config: ApiClientConfig = {}) {
     const {
-      baseUrl = 'http://localhost:3001',
+      baseUrl = process.env.AI_LOGO_API_BASE_URL || 'http://localhost:3001',
       timeout = 120000, // 2 minutes for AI generation
       apiKey,
       retries = 3,

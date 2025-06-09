@@ -214,7 +214,7 @@ export const testScenarios: TestScenario[] = [
       theme: 'crypto',
       style: 'invalid-style',
     },
-    expectedBehavior: 'success', // Should handle gracefully
+    expectedBehavior: 'error',
     category: 'validation',
   },
   {
@@ -226,7 +226,7 @@ export const testScenarios: TestScenario[] = [
       style: LogoStyle.MODERN,
       size: '999x999',
     },
-    expectedBehavior: 'success', // Should handle gracefully
+    expectedBehavior: 'error',
     category: 'validation',
   },
 

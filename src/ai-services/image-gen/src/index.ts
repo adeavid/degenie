@@ -11,8 +11,6 @@ export { config, validateConfig } from './config';
 
 export * from './types';
 
-// Re-export for convenience
-import { LogoGenerator } from './services/logo-generator';
 import { validateConfig } from './config';
 
 /**

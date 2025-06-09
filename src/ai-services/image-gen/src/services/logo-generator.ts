@@ -40,7 +40,7 @@ export class LogoGenerator {
         console.log('✅ OpenAI client initialized');
       }
     } catch (error) {
-      console.warn('⚠️ OpenAI client initialization failed:', error);
+      console.warn('⚠️ OpenAI client initialization failed:', error instanceof Error ? error.message : String(error));
     }
 
     try {
@@ -49,7 +49,7 @@ export class LogoGenerator {
         console.log('✅ Stability AI client initialized');
       }
     } catch (error) {
-      console.warn('⚠️ Stability AI client initialization failed:', error);
+      console.warn('⚠️ Stability AI client initialization failed:', error instanceof Error ? error.message : String(error));
     }
 
     if (!this.openaiClient && !this.stabilityClient) {
@@ -117,7 +117,7 @@ export class LogoGenerator {
         result.localPath = localPath;
         console.log(`💾 Logo saved locally: ${localPath}`);
       } catch (error) {
-        console.warn('⚠️ Failed to save logo locally:', error);
+        console.warn(`⚠️ Failed to save logo locally for ${request.tokenName}:`, error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -184,7 +184,7 @@ export class LogoGenerator {
     // Validate colors if provided
     if (request.colors) {
       for (const color of request.colors) {
-        if (!/^#[0-9A-Fa-f]{6}$/.test(color) && !/^[a-zA-Z]+$/.test(color)) {
+        const isValidColor = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color) || // Hex colors\n                            /^rgb\\(\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*\\)$/.test(color) || // RGB\n                            /^rgba\\(\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*[\\d.]+\\s*\\)$/.test(color) || // RGBA\n                            /^[a-zA-Z]+$/.test(color); // Named colors\n        if (!isValidColor) {
           warnings.push(`Color '${color}' may not be recognized. Use hex codes (#RRGGBB) or color names.`);
         }
       }
@@ -203,7 +203,7 @@ export class LogoGenerator {
 
     // Generate filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${request.tokenName.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}_${provider}.png`;
+    const filename = `${request.tokenName.replace(/[^a-zA-Z0-9\\-_]/g, '_')}_${timestamp}_${provider}.png`;
     const filepath = path.join(config.general.outputPath, filename);
 
     // Download and save image
@@ -292,7 +292,7 @@ export class LogoGenerator {
 
       // Small delay between generations to respect rate limits
       if (i < count - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const provider = result.metadata.provider;\n        const delay = provider === AIProvider.STABILITY_AI ? 10000 : 6000; // Based on provider rate limits\n        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
 

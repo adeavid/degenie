@@ -5,7 +5,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import multer from 'multer';
 import path from 'path';
 import { LogoGenerator } from '../services/logo-generator';
 import { LogoRequest, LogoStyle, ImageSize, ImageFormat, AIProvider } from '../types';
