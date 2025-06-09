@@ -33,15 +33,30 @@ export async function generateLogo(tokenName: string, theme?: string) {
   if (!tokenName || typeof tokenName !== 'string' || tokenName.trim().length === 0) {
     throw new Error('Token name is required and must be a non-empty string');
   }
+  
+  // Validate token name length and characters
+  const trimmedTokenName = tokenName.trim();
+  if (trimmedTokenName.length > 100) {
+    throw new Error('Token name must be 100 characters or less');
+  }
+  
+  // Basic sanitization - allow alphanumeric, spaces, and common symbols
+  if (!/^[a-zA-Z0-9\s\-_\.]+$/.test(trimmedTokenName)) {
+    throw new Error('Token name contains invalid characters');
+  }
 
-  if (theme && typeof theme !== 'string') {
+  if (theme !== undefined && (typeof theme !== 'string' || theme.trim().length === 0)) {
     throw new Error('Theme must be a string if provided');
+  }
+  
+  if (theme && theme.length > 50) {
+    throw new Error('Theme must be 50 characters or less');
   }
 
   const generator = createLogoGenerator();
   return await generator.generateLogo({
-    tokenName: tokenName.trim(),
-    theme,
+    tokenName: trimmedTokenName,
+    theme: theme?.trim(),
   });
 }
 

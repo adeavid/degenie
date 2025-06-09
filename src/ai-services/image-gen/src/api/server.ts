@@ -3,20 +3,48 @@
  * Express.js server that exposes the logo generation service via REST API
  */
 
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { LogoGenerator } from '../services/logo-generator';
-import { LogoRequest, LogoStyle, ImageSize, ImageFormat, AIProvider } from '../types';
+import { LogoRequest, LogoStyle, ImageSize, ImageFormat, AIProvider, GenerationOptions } from '../types';
 import { validateConfig } from '../config';
 
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Add authentication middleware
+const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+  const apiKey = req.headers['x-api-key'];
+  if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
+    const error = new Error('Unauthorized');
+    (error as any).status = 401;
+    (error as any).code = 'UNAUTHORIZED';
+    next(error);
+    return;
+  }
+  next();
+};
+
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
+
+// Add rate limiting in production
+if (process.env.NODE_ENV === 'production') {
+  const rateLimit = require('express-rate-limit');
+  app.use('/api/', rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests', code: 'RATE_LIMITED' }
+  }));
+}
+
+// Fix: Static assets with correct path resolution
+app.use(express.static(path.join(__dirname, '../../public')));
 
 // Initialize logo generator
 let logoGenerator: LogoGenerator;
@@ -40,7 +68,7 @@ try {
 /**
  * Health check endpoint
  */
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response): void => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -52,7 +80,7 @@ app.get('/health', (req, res) => {
 /**
  * Get service information and available options
  */
-app.get('/api/info', (req, res) => {
+app.get('/api/info', (req: Request, res: Response): void => {
   res.json({
     service: 'DeGenie Logo Generation API',
     version: '1.0.0',
@@ -67,7 +95,7 @@ app.get('/api/info', (req, res) => {
 /**
  * Generate a single logo
  */
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('📝 Received logo generation request:', req.body);
 
@@ -84,32 +112,40 @@ app.post('/api/generate', async (req, res) => {
 
     // Validate required fields
     if (!tokenName || typeof tokenName !== 'string') {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'tokenName is required and must be a string',
         code: 'INVALID_TOKEN_NAME',
       });
+      return;
     }
 
     // Build request object
     const logoRequest: LogoRequest = {
       tokenName: tokenName.trim(),
       theme,
-      style: style as LogoStyle,
+      style: Object.values(LogoStyle).includes(style) ? style as LogoStyle : undefined,
       colors: Array.isArray(colors) ? colors : undefined,
-      size: size as ImageSize,
-      format: format as ImageFormat,
+      size: Object.values(ImageSize).includes(size) ? size as ImageSize : undefined,
+      format: Object.values(ImageFormat).includes(format) ? format as ImageFormat : undefined,
     };
 
     // Generation options
-    const options = {
-      provider: provider as AIProvider,
-    };
+    const validProvider = provider && Object.values(AIProvider).includes(provider) 
+      ? provider as AIProvider 
+      : undefined;
+    
+    const options: GenerationOptions | undefined = validProvider 
+      ? { provider: validProvider }
+      : undefined;
+
+    // Validate variations parameter
+    const validatedVariations = Math.max(1, Math.min(parseInt(variations) || 1, 5));
 
     let result;
 
-    if (variations > 1) {
+    if (validatedVariations > 1) {
       // Generate multiple variations
-      const results = await logoGenerator.generateVariations(logoRequest, Math.min(variations, 5));
+      const results = await logoGenerator.generateVariations(logoRequest, validatedVariations);
       result = {
         success: results.some(r => r.success),
         variations: results,
@@ -137,15 +173,16 @@ app.post('/api/generate', async (req, res) => {
 /**
  * Get theme suggestions for a token name
  */
-app.post('/api/suggest-themes', (req, res) => {
+app.post('/api/suggest-themes', (req: Request, res: Response): void => {
   try {
     const { tokenName } = req.body;
 
     if (!tokenName || typeof tokenName !== 'string') {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'tokenName is required and must be a string',
         code: 'INVALID_TOKEN_NAME',
       });
+      return;
     }
 
     const suggestions = logoGenerator.suggestThemes(tokenName.trim());
@@ -169,10 +206,11 @@ app.post('/api/suggest-themes', (req, res) => {
 /**
  * Get generation history
  */
-app.get('/api/history', (req, res) => {
+app.get('/api/history', (req: Request, res: Response): void => {
   try {
     const history = logoGenerator.getGenerationHistory();
-    const limit = parseInt(req.query.limit as string) || 50;
+    const rawLimit = parseInt(req.query.limit as string);
+    const limit = (!isNaN(rawLimit) && rawLimit > 0) ? Math.min(rawLimit, 100) : 50;
     
     res.json({
       history: history.slice(-limit),
@@ -193,7 +231,7 @@ app.get('/api/history', (req, res) => {
 /**
  * Get usage statistics
  */
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', (req: Request, res: Response): void => {
   try {
     const stats = logoGenerator.getUsageStats();
     res.json(stats);
@@ -211,7 +249,7 @@ app.get('/api/stats', (req, res) => {
 /**
  * Clear generation history (admin endpoint)
  */
-app.delete('/api/history', async (req, res) => {
+app.delete('/api/history', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     await logoGenerator.clearHistory();
     res.json({
@@ -229,19 +267,23 @@ app.delete('/api/history', async (req, res) => {
   }
 });
 
-// Error handling middleware
+// Fix: Error handling middleware that preserves status codes
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('❌ Unhandled error:', error);
-  
-  res.status(500).json({
-    error: 'Internal server error',
-    code: 'INTERNAL_ERROR',
-    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',
+  console.error('Unhandled error:', error.stack || error);
+
+  const status = typeof error.status === 'number' && error.status >= 400 && error.status < 600
+    ? error.status
+    : 500;
+
+  res.status(status).json({
+    error: error.message || 'Internal server error',
+    code: error.code || 'INTERNAL_ERROR',
+    ...(process.env.NODE_ENV === 'development' && { debug: error.stack })
   });
 });
 
 // 404 handler
-app.use((req, res) => {
+app.use((req: Request, res: Response): void => {
   res.status(404).json({
     error: 'Endpoint not found',
     code: 'NOT_FOUND',

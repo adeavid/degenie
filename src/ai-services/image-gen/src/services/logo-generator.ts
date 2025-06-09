@@ -27,6 +27,7 @@ export class LogoGenerator {
   private openaiClient?: OpenAIClient;
   private stabilityClient?: StabilityClient;
   private generationHistory: LogoResponse[] = [];
+  private readonly MAX_HISTORY = 500;
 
   constructor() {
     this.promptGenerator = new PromptGenerator();
@@ -99,12 +100,16 @@ export class LogoGenerator {
     const fallbackProvider = options?.fallbackProvider || config.general.fallbackProvider;
 
     // Try primary provider first
+    const t0 = Date.now();
     let result = await this.tryProvider(primaryProvider, prompt, request);
+    result.generationTime ??= Date.now() - t0;
 
     // If primary fails, try fallback
     if (!result.success && fallbackProvider && fallbackProvider !== primaryProvider) {
       console.log(`🔄 Primary provider failed, trying fallback: ${fallbackProvider}`);
+      const t1 = Date.now();
       result = await this.tryProvider(fallbackProvider, prompt, request);
+      result.generationTime ??= Date.now() - t1;
     }
 
     // Save locally if successful and enabled
@@ -120,6 +125,9 @@ export class LogoGenerator {
 
     // Add to history
     this.generationHistory.push(result);
+    if (this.generationHistory.length > this.MAX_HISTORY) {
+      this.generationHistory.shift(); // drop oldest
+    }
 
     // Log result
     if (result.success) {
@@ -204,7 +212,9 @@ export class LogoGenerator {
 
     // Generate filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${request.tokenName.replace(/[^a-zA-Z0-9\\-_]/g, '_')}_${timestamp}_${provider}.png`;
+    const sanitized = request.tokenName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
+    const ext = request.format?.toLowerCase() ?? 'png';
+    const filename = `${sanitized}_${timestamp}_${provider}.${ext}`;
     const filepath = path.join(config.general.outputPath, filename);
 
     // Download and save image
@@ -214,9 +224,14 @@ export class LogoGenerator {
       const buffer = Buffer.from(base64Data, 'base64');
       
       // Process with sharp for consistent format
-      await sharp(buffer)
-        .png({ quality: 100 })
-        .toFile(filepath);
+      const sharpProcessor = sharp(buffer);
+      if (ext === 'png') {
+        await sharpProcessor.png({ quality: 100 }).toFile(filepath);
+      } else if (ext === 'jpeg' || ext === 'jpg') {
+        await sharpProcessor.jpeg({ quality: 100 }).toFile(filepath);
+      } else {
+        await sharpProcessor.png({ quality: 100 }).toFile(filepath);
+      }
     } else {
       // Handle regular URLs
       const response = await axios({
@@ -225,11 +240,22 @@ export class LogoGenerator {
         responseType: 'arraybuffer',
         timeout: 30000,
       });
+      
+      // Verify content-type is an image
+      const contentType = response.headers['content-type'];
+      if (!contentType?.startsWith('image/')) {
+        throw new Error(`Invalid response content-type: ${contentType}`);
+      }
 
       // Process with sharp for consistent format and optimization
-      await sharp(Buffer.from(response.data))
-        .png({ quality: 100 })
-        .toFile(filepath);
+      const sharpProcessor = sharp(Buffer.from(response.data));
+      if (ext === 'png') {
+        await sharpProcessor.png({ quality: 100 }).toFile(filepath);
+      } else if (ext === 'jpeg' || ext === 'jpg') {
+        await sharpProcessor.jpeg({ quality: 100 }).toFile(filepath);
+      } else {
+        await sharpProcessor.png({ quality: 100 }).toFile(filepath);
+      }
     }
 
     return filepath;

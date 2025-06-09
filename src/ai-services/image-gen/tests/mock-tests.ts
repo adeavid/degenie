@@ -3,6 +3,11 @@
  * Tests that can run without actual API keys (for development)
  */
 
+// IMPORTANT: Set env vars BEFORE importing modules that read them
+if (!process.env.OPENAI_API_KEY && !process.env.STABILITY_API_KEY) {
+  process.env.OPENAI_API_KEY = 'test-key-for-mocking';
+}
+
 import { LogoGenerator } from '../src/services/logo-generator';
 import { PromptGenerator } from '../src/services/prompt-generator';
 import { LogoRequest, LogoStyle, ImageSize, AIProvider } from '../src/types';
@@ -20,29 +25,18 @@ export class MockTestRunner {
 
   constructor() {
     this.promptGenerator = new PromptGenerator();
-    
-    // Mock API keys for testing to prevent initialization failures
-    this.setupMockApiKeys();
-  }
-
-  private setupMockApiKeys() {
-    // Ensure at least one API key is set for LogoGenerator initialization
-    if (!config.openai.apiKey && !config.stabilityAI.apiKey) {
-      // Set a dummy API key for testing
-      (config.openai as any).apiKey = 'test-key-for-mocking';
-    }
   }
 
   async runAllMockTests(): Promise<void> {
     console.log('🧪 Running mock tests (no API keys required)...\n');
 
-    const tests = [
-      () => this.testPromptGeneration(),
-      () => this.testThemeSuggestions(),
-      () => this.testConfigValidation(),
-      () => this.testInputValidation(),
-      () => this.testServiceInitialization(),
-      () => this.testEdgeCases(),
+    const tests: Array<() => Promise<void>> = [
+      this.testPromptGeneration.bind(this),
+      this.testThemeSuggestions.bind(this),
+      this.testConfigValidation.bind(this),
+      this.testInputValidation.bind(this),
+      this.testServiceInitialization.bind(this),
+      this.testEdgeCases.bind(this),
     ];
 
     for (const test of tests) {
@@ -110,8 +104,8 @@ export class MockTestRunner {
       throw new Error('Auto-theme prompt generation failed');
     }
 
-    // Test with special characters
-    const prompt4 = this.promptGenerator.generatePrompt({ tokenName: 'Token-2024!', theme: 'tech', style: LogoStyle.MINIMALIST });
+    // Test with allowed special characters
+    const prompt4 = this.promptGenerator.generatePrompt({ tokenName: 'Token-2024_Pro', theme: 'tech', style: LogoStyle.MINIMALIST });
     if (!prompt4) {
       throw new Error('Special character handling failed');
     }
@@ -262,10 +256,16 @@ export class MockTestRunner {
     console.log('   Testing edge cases...');
 
     // Test very long token names
+    // Test long token name validation (should fail)
     const longName = 'A'.repeat(200);
-    const longPrompt = this.promptGenerator.generatePrompt({ tokenName: longName, theme: 'crypto', style: LogoStyle.MODERN });
-    if (!longPrompt) {
-      throw new Error('Failed to handle very long token name');
+    try {
+      this.promptGenerator.generatePrompt({ tokenName: longName, theme: 'crypto', style: LogoStyle.MODERN });
+      throw new Error('Expected validation to fail for very long token name');
+    } catch (error: any) {
+      if (!error.message.includes('shorter than 50 characters')) {
+        throw new Error('Unexpected error for long token name: ' + error.message);
+      }
+      // Expected validation error
     }
 
     // Test empty/invalid inputs (should not crash)

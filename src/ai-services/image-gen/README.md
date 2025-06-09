@@ -18,15 +18,40 @@ AI-powered logo generation service for the DeGenie token creation platform. Crea
 
 ### 1. Installation
 
+<<<<<<< HEAD
+```bash
+cd src/ai-services/image-gen
+npm install
+```
+=======
 ```textbash
 cd src/ai-services/image-gen
 npm install
 ```text
+>>>>>>> origin/main
 
 ### 2. Configuration
 
 Copy the environment template and add your API keys:
 
+<<<<<<< HEAD
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your API keys:
+
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+STABILITY_API_KEY=your_stability_api_key_here
+```
+
+### 3. Start the Server
+
+```bash
+npm run dev:server
+```
+=======
 ```textbash
 cp .env.example .env
 ```text
@@ -43,12 +68,17 @@ STABILITY_API_KEY=your_stability_api_key_here
 ```textbash
 npm run dev:server
 ```text
+>>>>>>> origin/main
 
 The API server will start on `http://localhost:3001`
 
 ### 4. Test the Service
 
+<<<<<<< HEAD
+```bash
+=======
 ```textbash
+>>>>>>> origin/main
 # Run mock tests (no API keys required)
 npm run test:mock
 
@@ -58,7 +88,11 @@ npm run test:scenarios
 # Test specific scenarios
 npm run test:scenarios basic
 npm run test:scenarios connection
+<<<<<<< HEAD
+```
+=======
 ```text
+>>>>>>> origin/main
 
 ## Usage
 
@@ -68,7 +102,11 @@ Visit `http://localhost:3001` for the interactive web interface.
 
 ### API Client
 
+<<<<<<< HEAD
+```typescript
+=======
 ```texttypescript
+>>>>>>> origin/main
 import { createApiClient } from './src/client/api-client';
 
 const client = createApiClient();
@@ -81,11 +119,19 @@ const autoLogo = await client.generateWithAutoTheme('GameFi');
 
 // Generate multiple variations
 const variations = await client.generateVariations('DeFiToken', 3);
+<<<<<<< HEAD
+```
+
+### REST API
+
+```bash
+=======
 ```text
 
 ### REST API
 
 ```textbash
+>>>>>>> origin/main
 # Generate a logo
 curl -X POST http://localhost:3001/api/generate \
   -H "Content-Type: application/json" \
@@ -101,7 +147,11 @@ curl -X POST http://localhost:3001/api/generate \
 curl -X POST http://localhost:3001/api/suggest-themes \
   -H "Content-Type: application/json" \
   -d '{"tokenName": "GameToken"}'
+<<<<<<< HEAD
+```
+=======
 ```text
+>>>>>>> origin/main
 
 ## API Endpoints
 
@@ -117,14 +167,24 @@ curl -X POST http://localhost:3001/api/suggest-themes \
 ### Mock Tests (No API Keys)
 Tests core functionality without making API calls:
 
+<<<<<<< HEAD
+```bash
+npm run test:mock
+```
+=======
 ```textbash
 npm run test:mock
 ```text
+>>>>>>> origin/main
 
 ### Integration Tests
 Comprehensive testing with various input scenarios:
 
+<<<<<<< HEAD
+```bash
+=======
 ```textbash
+>>>>>>> origin/main
 # Run all tests
 npm run test:scenarios
 
@@ -139,14 +199,24 @@ npm run test:scenarios single "crypto token"
 
 # Test connection only
 npm run test:scenarios connection
+<<<<<<< HEAD
+```
+=======
 ```text
+>>>>>>> origin/main
 
 ### API Integration Examples
 Run real API integration examples:
 
+<<<<<<< HEAD
+```bash
+npm run test:integration
+```
+=======
 ```textbash
 npm run test:integration
 ```text
+>>>>>>> origin/main
 
 ## Available Themes
 
@@ -215,6 +285,24 @@ The service includes comprehensive error handling:
 
 ### Build
 
+<<<<<<< HEAD
+```bash
+npm run build
+```
+
+### Linting
+
+```bash
+npm run lint
+npm run lint:fix
+```
+
+### Development Server
+
+```bash
+npm run dev:server
+```
+=======
 ```textbash
 npm run build
 ```text
@@ -231,6 +319,7 @@ npm run lint:fix
 ```textbash
 npm run dev:server
 ```text
+>>>>>>> origin/main
 
 ## Environment Variables
 
