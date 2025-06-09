@@ -7,7 +7,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { LogoGenerator } from '../services/logo-generator';
-import { LogoRequest, LogoStyle, ImageSize, ImageFormat, AIProvider } from '../types';
+import { LogoRequest, LogoStyle, ImageSize, ImageFormat, AIProvider, GenerationOptions } from '../types';
 import { validateConfig } from '../config';
 
 const app = express();
@@ -17,7 +17,10 @@ const port = process.env.PORT || 3001;
 const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
   const apiKey = req.headers['x-api-key'];
   if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
-    res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+    const error = new Error('Unauthorized');
+    (error as any).status = 401;
+    (error as any).code = 'UNAUTHORIZED';
+    next(error);
     return;
   }
   next();
@@ -28,7 +31,18 @@ app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Add rate limiting in production
+if (process.env.NODE_ENV === 'production') {
+  const rateLimit = require('express-rate-limit');
+  app.use('/api/', rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests', code: 'RATE_LIMITED' }
+  }));
+}
+
 app.use(express.static('public'));
 
 // Initialize logo generator
@@ -108,16 +122,20 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<void> => 
     const logoRequest: LogoRequest = {
       tokenName: tokenName.trim(),
       theme,
-      style: style as LogoStyle,
+      style: Object.values(LogoStyle).includes(style) ? style as LogoStyle : undefined,
       colors: Array.isArray(colors) ? colors : undefined,
-      size: size as ImageSize,
-      format: format as ImageFormat,
+      size: Object.values(ImageSize).includes(size) ? size as ImageSize : undefined,
+      format: Object.values(ImageFormat).includes(format) ? format as ImageFormat : undefined,
     };
 
     // Generation options
-    const options = {
-      provider: provider as AIProvider,
-    };
+    const validProvider = provider && Object.values(AIProvider).includes(provider) 
+      ? provider as AIProvider 
+      : undefined;
+    
+    const options: GenerationOptions | undefined = validProvider 
+      ? { provider: validProvider }
+      : undefined;
 
     // Validate variations parameter
     const validatedVariations = Math.max(1, Math.min(parseInt(variations) || 1, 5));

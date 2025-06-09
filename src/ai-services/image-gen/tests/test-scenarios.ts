@@ -93,11 +93,11 @@ export const testScenarios: TestScenario[] = [
     name: 'Very long token name',
     description: 'Test with extremely long token name',
     input: {
-      tokenName: 'SuperDuperMegaAwesomeUltraSpecialCryptoTokenOfTheDecentralizedFuture',
+      tokenName: 'SuperDuperMegaAwesomeUltraSpecialCryptoTokenOfTheDecentralizedFuture', // 68 chars > 50
       theme: 'crypto',
       style: LogoStyle.MINIMALIST,
     },
-    expectedBehavior: 'success',
+    expectedBehavior: 'error', // validation should reject names >50 chars
     category: 'edge-case',
   },
   {
