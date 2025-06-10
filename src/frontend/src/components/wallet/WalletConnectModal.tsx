@@ -170,7 +170,15 @@ export function WalletConnectModal({ isOpen, onClose, onConnect }: WalletConnect
                 )}
 
                 <div className="mt-4 text-xs text-gray-500 text-center">
-                  By connecting, you agree to our Terms of Service
+                  By connecting, you agree to our{' '}
+                  <a
+                    href="/terms"
+                    className="text-blue-600 hover:text-blue-700 underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Terms of Service
+                  </a>
                 </div>
               </Dialog.Panel>
             </Transition.Child>
