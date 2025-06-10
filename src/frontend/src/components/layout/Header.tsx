@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { WalletConnectButtonV2Wrapper } from '@/components/wallet/WalletConnectButtonV2Wrapper';
 
 export const Header: React.FC = () => {
   return (
@@ -32,9 +35,7 @@ export const Header: React.FC = () => {
           
           {/* Actions */}
           <div className="flex items-center space-x-4">
-            <Button variant="outline" size="sm">
-              Connect Wallet
-            </Button>
+            <WalletConnectButtonV2Wrapper />
             <Button size="sm">
               Launch Token
             </Button>
