@@ -1,13 +1,27 @@
 import { createConfig, http } from 'wagmi';
 import { mainnet, base, arbitrum, polygon } from 'wagmi/chains';
-import { injected } from 'wagmi/connectors';
+import { injected, walletConnect } from 'wagmi/connectors';
 
-// Por ahora no usamos WalletConnect para evitar el error del projectId
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+
+// Create connectors array based on whether we have a WalletConnect project ID
+const connectors = [
+  injected(), // MetaMask and other injected wallets
+];
+
+// Only add WalletConnect if we have a valid project ID
+if (projectId && projectId !== 'your_project_id_here' && projectId !== '') {
+  connectors.push(
+    walletConnect({
+      projectId,
+      showQrModal: true,
+    })
+  );
+}
+
 export const wagmiConfig = createConfig({
   chains: [mainnet, base, arbitrum, polygon],
-  connectors: [
-    injected(), // MetaMask y otros wallets inyectados
-  ],
+  connectors,
   transports: {
     [mainnet.id]: http(),
     [base.id]: http(),
