@@ -250,9 +250,20 @@ export default function WalletBalanceTestPage() {
                   </button>
                 </div>
                 {walletInfo.type === 'solana' && walletInfo.balance === 'RPC Limited' && (
-                  <p className="text-xs text-yellow-600 mt-1">
-                    Public RPC endpoints often block browser requests. Production apps use dedicated RPC services.
-                  </p>
+                  <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs">
+                    <p className="text-yellow-600 dark:text-yellow-400 font-semibold">⚠️ RPC Connection Limited</p>
+                    <p className="text-yellow-600 dark:text-yellow-400 mt-1">
+                      Public Solana RPC endpoints block browser requests for security.
+                    </p>
+                    <p className="text-yellow-600 dark:text-yellow-400 mt-1">
+                      For production, use a free RPC from:
+                    </p>
+                    <ul className="list-disc list-inside text-yellow-600 dark:text-yellow-400 mt-1">
+                      <li><a href="https://www.quicknode.com/" target="_blank" rel="noopener noreferrer" className="underline">QuickNode</a></li>
+                      <li><a href="https://www.alchemy.com/" target="_blank" rel="noopener noreferrer" className="underline">Alchemy</a></li>
+                      <li><a href="https://helius.xyz/" target="_blank" rel="noopener noreferrer" className="underline">Helius</a></li>
+                    </ul>
+                  </div>
                 )}
               </div>
             </div>

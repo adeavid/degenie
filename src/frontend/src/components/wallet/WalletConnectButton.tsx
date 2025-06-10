@@ -30,6 +30,8 @@ export function WalletConnectButton({ walletType, className }: WalletConnectButt
   const walletAddress = ethAddress || publicKey?.toBase58();
 
   const handleConnect = () => {
+    console.log('Connecting wallet type:', selectedWallet);
+    
     if (selectedWallet === 'ethereum') {
       const metamask = connectors.find(c => c.id === 'injected');
       const walletConnect = connectors.find(c => c.id === 'walletConnect');
@@ -40,6 +42,7 @@ export function WalletConnectButton({ walletType, className }: WalletConnectButt
         connectEth({ connector: walletConnect });
       }
     } else if (selectedWallet === 'solana') {
+      console.log('Opening Solana modal...');
       setSolanaModalVisible(true);
     }
   };
@@ -79,13 +82,24 @@ export function WalletConnectButton({ walletType, className }: WalletConnectButt
       <div className={clsx('flex gap-2', className)}>
         <Button
           variant="primary"
-          onClick={() => setSelectedWallet('ethereum')}
+          onClick={() => {
+            setSelectedWallet('ethereum');
+            // Connect immediately for Ethereum
+            const metamask = connectors.find(c => c.id === 'injected');
+            if (metamask) {
+              connectEth({ connector: metamask });
+            }
+          }}
         >
           🔷 Connect Ethereum
         </Button>
         <Button
           variant="primary"
-          onClick={() => setSelectedWallet('solana')}
+          onClick={() => {
+            setSelectedWallet('solana');
+            // Open modal immediately for Solana
+            setSolanaModalVisible(true);
+          }}
         >
           ☀️ Connect Solana
         </Button>
