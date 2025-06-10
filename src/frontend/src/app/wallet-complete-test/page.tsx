@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
@@ -20,27 +21,24 @@ export default function WalletCompleteTestPage() {
 
   // Solana hooks
   const { publicKey, connected: isSolConnected, disconnect: disconnectSol, wallet } = useWallet();
+  const { connection } = useConnection();
   const { setVisible: setSolanaModalVisible } = useWalletModal();
 
   // Fetch Solana balance
-  const fetchSolanaBalance = async () => {
+  const fetchSolanaBalance = useCallback(async () => {
     if (!publicKey) return;
     
     setIsLoadingSolBalance(true);
     try {
-      const connection = new (window as any).solanaWeb3.Connection(
-        process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
-        'confirmed'
-      );
       const balance = await connection.getBalance(publicKey);
       setSolBalance((balance / LAMPORTS_PER_SOL).toFixed(4));
     } catch (error) {
       console.error('Error fetching Solana balance:', error);
-      setSolBalance('Error');
+      setSolBalance('RPC Limited');
     } finally {
       setIsLoadingSolBalance(false);
     }
-  };
+  }, [publicKey, connection]);
 
   // Auto-fetch Solana balance when connected
   React.useEffect(() => {
@@ -49,7 +47,7 @@ export default function WalletCompleteTestPage() {
     } else {
       setSolBalance(null);
     }
-  }, [isSolConnected, publicKey]);
+  }, [isSolConnected, publicKey, fetchSolanaBalance]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">

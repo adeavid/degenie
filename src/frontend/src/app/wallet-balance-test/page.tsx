@@ -19,24 +19,35 @@ export default function WalletBalanceTestPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length === 0) {
+        setWalletInfo(null);
+      }
+    };
+
+    const handlePhantomDisconnect = () => {
+      setWalletInfo(null);
+    };
+
     // Listen for MetaMask account changes
     if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        if (accounts.length === 0) {
-          setWalletInfo(null);
-        }
-      });
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
     }
 
     // Listen for Phantom disconnect
-    if ('solana' in window) {
-      const provider = (window as any).solana;
-      if (provider?.isPhantom) {
-        provider.on('disconnect', () => {
-          setWalletInfo(null);
-        });
-      }
+    if ('solana' in window && window.solana?.isPhantom) {
+      window.solana.on('disconnect', handlePhantomDisconnect);
     }
+
+    // Cleanup listeners on unmount
+    return () => {
+      if (window.ethereum?.removeListener) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      }
+      if (window.solana?.off) {
+        window.solana.off('disconnect', handlePhantomDisconnect);
+      }
+    };
   }, []);
 
   const getEthereumBalance = async (address: string): Promise<string> => {
@@ -45,8 +56,17 @@ export default function WalletBalanceTestPage() {
         method: 'eth_getBalance',
         params: [address, 'latest']
       });
-      // Convert from Wei to ETH
-      const ethBalance = parseInt(balance, 16) / 1e18;
+      
+      // Validate response
+      if (!balance || typeof balance !== 'string') {
+        throw new Error('Invalid balance response from RPC');
+      }
+      
+      // Convert from Wei to ETH using BigInt to avoid precision loss
+      const balanceWei = BigInt(balance);
+      // Convert to ETH (divide by 10^18)
+      const ethBalance = Number(balanceWei) / 1e18;
+      
       return ethBalance.toFixed(4);
     } catch (error) {
       console.error('Error getting ETH balance:', error);

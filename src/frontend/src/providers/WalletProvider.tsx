@@ -40,7 +40,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
 
   // Don't render wallet providers until client-side
   if (!mounted) {
-    return <>{children}</>;
+    return <div suppressHydrationWarning>{children}</div>;
   }
 
   return (
