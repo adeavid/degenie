@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { WalletConnectButtonWrapper } from '@/components/wallet/WalletConnectButtonWrapper';
+import { WalletConnectButtonV2Wrapper } from '@/components/wallet/WalletConnectButtonV2Wrapper';
 
 export const Header: React.FC = () => {
   return (
@@ -35,7 +35,7 @@ export const Header: React.FC = () => {
           
           {/* Actions */}
           <div className="flex items-center space-x-4">
-            <WalletConnectButtonWrapper />
+            <WalletConnectButtonV2Wrapper />
             <Button size="sm">
               Launch Token
             </Button>
