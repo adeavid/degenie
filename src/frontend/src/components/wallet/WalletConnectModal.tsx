@@ -73,10 +73,15 @@ export function WalletConnectModal({ isOpen, onClose, onConnect }: WalletConnect
 
   const handleWalletClick = (wallet: Wallet, chainId: string) => {
     if (wallet.installed) {
-      onConnect(chainId, wallet.id);
-      onClose();
+      try {
+        onConnect(chainId, wallet.id);
+        onClose();
+      } catch (error) {
+        console.error('Failed to connect wallet:', error);
+        // Add user-friendly error handling
+      }
     } else if (wallet.downloadUrl) {
-      window.open(wallet.downloadUrl, '_blank');
+      window.open(wallet.downloadUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
