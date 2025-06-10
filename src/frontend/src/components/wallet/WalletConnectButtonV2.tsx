@@ -48,12 +48,21 @@ export function WalletConnectButtonV2({ walletType, className }: WalletConnectBu
   useEffect(() => {
     // Check if Phantom is already connected
     checkSolanaConnection();
+
+    // Cleanup Solana event listeners on unmount
+    return () => {
+      const { solana } = window as any;
+      if (solana?.removeAllListeners) {
+        solana.removeAllListeners('disconnect');
+        solana.removeAllListeners('accountChanged');
+      }
+    };
   }, []);
 
   const checkSolanaConnection = async () => {
     try {
       const { solana } = window as any;
-      if (solana && solana.isPhantom) {
+      if (solana?.isPhantom) {
         const response = await solana.connect({ onlyIfTrusted: true });
         const pubKey = response.publicKey.toString();
         setSolanaWallet({
@@ -65,7 +74,8 @@ export function WalletConnectButtonV2({ walletType, className }: WalletConnectBu
         fetchSolanaBalance(pubKey);
       }
     } catch (error) {
-      // Not connected, ignore
+      // Not connected or user rejected, ignore
+      console.debug('Solana auto-connect failed:', error);
     }
   };
 
@@ -87,7 +97,7 @@ export function WalletConnectButtonV2({ walletType, className }: WalletConnectBu
       setLoading(true);
       const { solana } = window as any;
       
-      if (!solana || !solana.isPhantom) {
+      if (!solana?.isPhantom) {
         alert('Please install Phantom wallet!');
         return;
       }
@@ -102,6 +112,10 @@ export function WalletConnectButtonV2({ walletType, className }: WalletConnectBu
       });
       
       fetchSolanaBalance(pubKey);
+      
+      // Clean up existing listeners first
+      solana.removeAllListeners?.('disconnect');
+      solana.removeAllListeners?.('accountChanged');
       
       // Listen for disconnect
       solana.on('disconnect', () => {

@@ -21,15 +21,31 @@ interface Wallet {
   downloadUrl?: string;
 }
 
+// Add wallet detection utility
+const isWalletInstalled = (walletId: string): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  switch (walletId) {
+    case 'metamask':
+      return !!window.ethereum?.isMetaMask;
+    case 'phantom':
+      return !!window.solana?.isPhantom;
+    case 'walletconnect':
+      return true; // Always available as it's a protocol
+    default:
+      return false;
+  }
+};
+
 const chains: Chain[] = [
   {
     id: 'ethereum',
     name: 'Ethereum',
     icon: '🔷',
     wallets: [
-      { id: 'metamask', name: 'MetaMask', icon: '🦊', installed: true },
-      { id: 'walletconnect', name: 'WalletConnect', icon: '🔗', installed: true },
-      { id: 'coinbase', name: 'Coinbase Wallet', icon: '🪙', installed: false, downloadUrl: 'https://www.coinbase.com/wallet' },
+      { id: 'metamask', name: 'MetaMask', icon: '🦊', downloadUrl: 'https://metamask.io/download/' },
+      { id: 'walletconnect', name: 'WalletConnect', icon: '🔗' },
+      { id: 'coinbase', name: 'Coinbase Wallet', icon: '🪙', downloadUrl: 'https://www.coinbase.com/wallet' },
     ]
   },
   {
@@ -37,9 +53,9 @@ const chains: Chain[] = [
     name: 'Solana',
     icon: '☀️',
     wallets: [
-      { id: 'phantom', name: 'Phantom', icon: '👻', installed: true },
-      { id: 'solflare', name: 'Solflare', icon: '🔥', installed: false, downloadUrl: 'https://solflare.com' },
-      { id: 'backpack', name: 'Backpack', icon: '🎒', installed: false, downloadUrl: 'https://backpack.app' },
+      { id: 'phantom', name: 'Phantom', icon: '👻', downloadUrl: 'https://phantom.app/download' },
+      { id: 'solflare', name: 'Solflare', icon: '🔥', downloadUrl: 'https://solflare.com' },
+      { id: 'backpack', name: 'Backpack', icon: '🎒', downloadUrl: 'https://backpack.app' },
     ]
   },
   {
@@ -47,8 +63,8 @@ const chains: Chain[] = [
     name: 'Base',
     icon: '🔵',
     wallets: [
-      { id: 'metamask', name: 'MetaMask', icon: '🦊', installed: true },
-      { id: 'coinbase', name: 'Coinbase Wallet', icon: '🪙', installed: false, downloadUrl: 'https://www.coinbase.com/wallet' },
+      { id: 'metamask', name: 'MetaMask', icon: '🦊', downloadUrl: 'https://metamask.io/download/' },
+      { id: 'coinbase', name: 'Coinbase Wallet', icon: '🪙', downloadUrl: 'https://www.coinbase.com/wallet' },
     ]
   },
   {
@@ -56,8 +72,8 @@ const chains: Chain[] = [
     name: 'Arbitrum',
     icon: '🔺',
     wallets: [
-      { id: 'metamask', name: 'MetaMask', icon: '🦊', installed: true },
-      { id: 'walletconnect', name: 'WalletConnect', icon: '🔗', installed: true },
+      { id: 'metamask', name: 'MetaMask', icon: '🦊', downloadUrl: 'https://metamask.io/download/' },
+      { id: 'walletconnect', name: 'WalletConnect', icon: '🔗' },
     ]
   }
 ];
@@ -72,7 +88,9 @@ export function WalletConnectModal({ isOpen, onClose, onConnect }: WalletConnect
   const [selectedChain, setSelectedChain] = useState<string | null>(null);
 
   const handleWalletClick = (wallet: Wallet, chainId: string) => {
-    if (wallet.installed) {
+    const isInstalled = isWalletInstalled(wallet.id);
+    
+    if (isInstalled) {
       try {
         onConnect(chainId, wallet.id);
         onClose();
@@ -165,7 +183,7 @@ export function WalletConnectModal({ isOpen, onClose, onConnect }: WalletConnect
                               <span className="text-2xl mr-3">{wallet.icon}</span>
                               <span className="font-medium">{wallet.name}</span>
                             </div>
-                            {!wallet.installed && (
+                            {!isWalletInstalled(wallet.id) && (
                               <span className="text-xs text-gray-500">Install</span>
                             )}
                           </button>
