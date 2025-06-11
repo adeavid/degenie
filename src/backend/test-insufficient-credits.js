@@ -13,28 +13,29 @@ async function testInsufficientCredits() {
     // We'll try viral tier which costs 1.5, so after 2 generations (3 credits) user should be insufficient
     
     // First generation (3 - 1.5 = 1.5 left)
-    await axios.post(`${BASE_URL}/api/generate/logo`, {
+    const gen1 = await axios.post(`${BASE_URL}/api/generate/logo`, {
       prompt: 'first logo test',
       userId: TEST_USER_ID,
       tier: 'viral'
     });
-    
+    if (!gen1.data?.success) throw new Error('First generation unexpectedly failed');
+
     // Second generation (1.5 - 1.5 = 0 left)
-    await axios.post(`${BASE_URL}/api/generate/logo`, {
-      prompt: 'second logo test', 
+    const gen2 = await axios.post(`${BASE_URL}/api/generate/logo`, {
+      prompt: 'second logo test',
       userId: TEST_USER_ID,
       tier: 'viral'
     });
-    
+    if (!gen2.data?.success) throw new Error('Second generation unexpectedly failed');
+
     // Third generation should fail with insufficient credits
     await axios.post(`${BASE_URL}/api/generate/logo`, {
       prompt: 'third logo test - should fail',
-      userId: TEST_USER_ID, 
+      userId: TEST_USER_ID,
       tier: 'viral'
     });
-    
+
     console.log('❌ Test failed - should have been insufficient credits');
-    
   } catch (error) {
     if (error.response?.status === 402 && error.response?.data?.error === 'Insufficient credits') {
       console.log('✅ Atomic credit check working: Insufficient credits correctly detected');
