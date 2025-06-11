@@ -116,11 +116,10 @@ export class CreditService extends EventEmitter {
       
       // Ensure cache is populated with current balance
       const currentBalance = await this.getBalance(userId);
-      await redis.set(cacheKey, currentBalance.toString());
-      
+      // key already cached inside getBalance – avoid overwriting to preserve concurrent deductions
+
       // Atomic check and deduct
       const newBalance = await redis.atomicCheckAndDeduct(cacheKey, amount);
-      
       if (newBalance === -1) {
         return false; // Insufficient funds
       }
