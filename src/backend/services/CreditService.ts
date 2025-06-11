@@ -388,7 +388,7 @@ export class CreditService extends EventEmitter {
 
       // Transform database records to match CreditTransaction interface
       return transactions.map(t => ({
-        userId: t.userId,
+        userId,
         amount: t.amount,
         type: t.type as 'earn' | 'spend' | 'refund',
         reason: t.reason,
