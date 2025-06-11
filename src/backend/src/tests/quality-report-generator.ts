@@ -202,7 +202,11 @@ export class QualityReportGenerator {
                 ${data.results.map(result => `
                     <tr>
                         <td>${escapeHtml(result.type.toUpperCase())}</td>
-                        <td><span class="tier-badge tier-${escapeHtml(result.tier)}">${escapeHtml(result.tier)}</span></td>
+                        ${(() => {
+                          const allowed = ['free', 'starter', 'viral'] as const;
+                          const tier    = allowed.includes(result.tier as any) ? result.tier : 'free';
+                          return `<td><span class="tier-badge tier-${tier}">${escapeHtml(tier)}</span></td>`;
+                        })()}
                         <td>${escapeHtml(result.prompt)}</td>
                         <td>${escapeHtml(result.metrics.resolution)}, ${result.metrics.steps} steps</td>
                         <td>${result.metrics.time}ms</td>
