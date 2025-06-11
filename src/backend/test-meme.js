@@ -7,8 +7,8 @@ function testMemeAPI() {
   });
 
   const options = {
-    hostname: 'localhost',
-    port: 4000,
+    hostname: process.env.DEGENIE_HOST || 'localhost',
+    port: Number(process.env.DEGENIE_PORT) || 4000,
     path: '/api/generate/meme',
     method: 'POST',
     headers: {
@@ -35,7 +35,7 @@ function testMemeAPI() {
         console.log('\n✅ Meme Generated! Response:');
         console.log(JSON.stringify(result, null, 2));
         
-        if (result.data && result.data.imageUrl) {
+        if (result.data?.imageUrl) {
           console.log('\n🎭 Generated Meme URL:');
           console.log(result.data.imageUrl);
         }

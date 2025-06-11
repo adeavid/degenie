@@ -172,10 +172,10 @@ export class AssetQualityTester {
    */
   private evaluateQuality(
     data: any,
-    prompt: string,
+    _prompt: string,
     expectedKeywords: string[],
-    type: string,
-    tier: string
+    _type: string,
+    _tier: string
   ): QualityMetrics {
     // Since we can't actually analyze images in demo mode,
     // we'll use heuristics based on the generation data
@@ -225,8 +225,8 @@ export class AssetQualityTester {
   private generateNotes(
     metrics: QualityMetrics,
     data: any,
-    type: string,
-    tier: string
+    _type: string,
+    _tier: string
   ): string[] {
     const notes: string[] = [];
 
@@ -280,23 +280,23 @@ export class AssetQualityTester {
       if (!byType[result.assetType]) {
         byType[result.assetType] = { avgScore: 0, tests: 0 };
       }
-      byType[result.assetType].tests++;
-      byType[result.assetType].avgScore += result.metrics.overall;
+      byType[result.assetType]!.tests++;
+      byType[result.assetType]!.avgScore += result.metrics.overall;
 
       // By tier
       if (!byTier[result.tier]) {
         byTier[result.tier] = { avgScore: 0, tests: 0 };
       }
-      byTier[result.tier].tests++;
-      byTier[result.tier].avgScore += result.metrics.overall;
+      byTier[result.tier]!.tests++;
+      byTier[result.tier]!.avgScore += result.metrics.overall;
     }
 
     // Calculate averages
     Object.keys(byType).forEach(type => {
-      byType[type].avgScore = Math.round(byType[type].avgScore / byType[type].tests);
+      byType[type]!.avgScore = Math.round(byType[type]!.avgScore / byType[type]!.tests);
     });
     Object.keys(byTier).forEach(tier => {
-      byTier[tier].avgScore = Math.round(byTier[tier].avgScore / byTier[tier].tests);
+      byTier[tier]!.avgScore = Math.round(byTier[tier]!.avgScore / byTier[tier]!.tests);
     });
 
     // Generate recommendations
@@ -333,7 +333,7 @@ export class AssetQualityTester {
     });
 
     // Tier-based recommendations
-    const tierDiff = (byTier.viral?.avgScore || 0) - (byTier.free?.avgScore || 0);
+    const tierDiff = (byTier['viral']?.avgScore || 0) - (byTier['free']?.avgScore || 0);
     if (tierDiff < 15) {
       recommendations.push('⚠️ Consider increasing quality gap between tiers');
     } else if (tierDiff > 25) {

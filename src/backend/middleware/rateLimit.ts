@@ -86,8 +86,8 @@ export function rateLimitMiddleware(configName: string) {
       
       if (requests >= maxRequests) {
         const oldestRequest = await redis.zrange(key, 0, 0, 'WITHSCORES');
-        const resetTime = oldestRequest.length > 1 
-          ? parseInt(oldestRequest[1]) + config.windowMs
+        const resetTime = oldestRequest.length >= 2 && !isNaN(Number(oldestRequest[1]))
+          ? Number(oldestRequest[1]) + config.windowMs
           : now + config.windowMs;
         
         res.status(429).json({

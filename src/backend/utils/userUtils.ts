@@ -4,6 +4,10 @@ import { UserTier } from '../types/ai';
 const prisma = new PrismaClient();
 
 export async function getUserTier(userId: string): Promise<UserTier> {
+  if (!userId?.trim()) {
+    return 'free';
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -23,10 +27,11 @@ export async function getUserTier(userId: string): Promise<UserTier> {
       return 'free';
     }
 
-    // Check if user has active subscription
+    // Check if user has active subscription with timezone-safe comparison
     if (user.subscription && 
         user.subscription.status === 'active' && 
-        user.subscription.expiresAt > new Date()) {
+        user.subscription.expiresAt && 
+        user.subscription.expiresAt.getTime() > Date.now()) {
       return user.subscription.tier as UserTier;
     }
 
@@ -39,13 +44,33 @@ export async function getUserTier(userId: string): Promise<UserTier> {
 }
 
 export async function updateUserTier(userId: string, tier: UserTier): Promise<void> {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { tier }
-  });
+  if (!userId?.trim()) {
+    throw new Error('Valid userId is required');
+  }
+
+  const validTiers: UserTier[] = ['free', 'starter', 'viral'];
+  if (!validTiers.includes(tier)) {
+    throw new Error(`Invalid tier: ${tier}. Valid tiers: ${validTiers.join(', ')}`);
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { tier }
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      throw new Error(`User not found: ${userId}`);
+    }
+    throw new Error(`Failed to update user tier: ${error?.message || 'Unknown error'}`);
+  }
 }
 
 export async function checkUserLimits(userId: string, action: string): Promise<boolean> {
+  if (!userId?.trim() || !action?.trim()) {
+    return false;
+  }
+
   const tier = await getUserTier(userId);
   
   const limits: Record<UserTier, Record<string, number>> = {
@@ -67,7 +92,12 @@ export async function checkUserLimits(userId: string, action: string): Promise<b
   };
 
   const userLimits = limits[tier];
-  const limit = userLimits[action];
+  const limit = userLimits?.[action];
+  
+  // If action is not defined for this tier, deny access
+  if (limit === undefined) {
+    return false;
+  }
   
   if (limit === -1) return true; // Unlimited
   
@@ -77,7 +107,36 @@ export async function checkUserLimits(userId: string, action: string): Promise<b
 }
 
 async function getUserUsage(userId: string, action: string): Promise<number> {
-  // Implementation would check Redis or database for usage counts
-  // This is a placeholder
-  return 0;
+  try {
+    // Create Redis client if needed
+    const { MockRedis } = await import('../src/services/MockRedis');
+    const redis = new MockRedis();
+    
+    // Use daily usage key
+    const today = new Date().toISOString().split('T')[0];
+    const usageKey = `usage:${userId}:${action}:${today}`;
+    
+    const usage = await redis.get(usageKey);
+    return parseInt(usage || '0', 10);
+  } catch (error) {
+    console.error('Error getting user usage:', error);
+    // Return high number to be safe if Redis fails
+    return 999999;
+  }
+}
+
+export async function incrementUserUsage(userId: string, action: string): Promise<void> {
+  try {
+    const { MockRedis } = await import('../src/services/MockRedis');
+    const redis = new MockRedis();
+    
+    const today = new Date().toISOString().split('T')[0];
+    const usageKey = `usage:${userId}:${action}:${today}`;
+    
+    // Increment and set expiry for 25 hours (to handle timezone differences)
+    await redis.incr(usageKey);
+    await redis.expire(usageKey, 25 * 60 * 60);
+  } catch (error) {
+    console.error('Error incrementing user usage:', error);
+  }
 }

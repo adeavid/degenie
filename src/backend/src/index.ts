@@ -24,7 +24,7 @@ const redis = new MockRedis();
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (process.env['CORS_ORIGINS'] || process.env['FRONTEND_URL'] || 'http://localhost:3000').split(','),
   credentials: true,
 }));
 app.use(morgan('combined'));
@@ -33,6 +33,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/health', async (req, res) => {
+  const isBasicCheck = req.query['basic'] === 'true';
+  
+  if (isBasicCheck) {
+    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+    return;
+  }
+  
   try {
     await prisma.$queryRaw`SELECT 1`;
     await redis.ping();

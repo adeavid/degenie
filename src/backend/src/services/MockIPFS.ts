@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// Node 18+ has fetch built-in; no import required
 
 // Mock IPFS service for development
 export class MockIPFS {
@@ -33,7 +33,9 @@ export class MockIPFS {
         throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
       }
       
-      const buffer = await response.buffer();
+      // Use arrayBuffer for memory efficiency with native fetch
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
       console.log(`✅ Downloaded ${buffer.length} bytes`);
       return buffer;
     } catch (error: any) {

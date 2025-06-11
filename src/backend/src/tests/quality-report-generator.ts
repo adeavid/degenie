@@ -235,7 +235,7 @@ export class QualityReportGenerator {
     const reportFilename = filename || `quality-report-${Date.now()}.html`;
     const filepath = path.join(reportsDir, reportFilename);
     
-    const html = await this.generateHTMLReport(data);
+    const html = await QualityReportGenerator.generateHTMLReport(data);
     await fs.writeFile(filepath, html);
     
     console.log(`\n📄 HTML Report saved to: ${filepath}`);
@@ -258,7 +258,7 @@ function generateTierChart(results: any[]): string {
   
   results.forEach(r => {
     if (tierScores[r.tier]) {
-      tierScores[r.tier].push(r.score);
+      tierScores[r.tier]!.push(r.score);
     }
   });
   

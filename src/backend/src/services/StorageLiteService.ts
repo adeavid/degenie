@@ -11,8 +11,8 @@ interface LiteStorageResult {
 export class StorageLiteService {
   private prisma: PrismaClient;
 
-  constructor() {
-    this.prisma = new PrismaClient();
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || new PrismaClient();
   }
 
   /**
@@ -117,13 +117,7 @@ export class StorageLiteService {
       };
     } catch (error: any) {
       console.error(`❌ Storage error:`, error);
-      // Return minimal result on error
-      return {
-        id: `error-${Date.now()}`,
-        ipfsHash: null,
-        ipfsUrl: null,
-        metadata: { error: error.message }
-      };
+      throw new Error(`Failed to store generation: ${error?.message || 'Unknown error'}`);
     }
   }
 
@@ -194,7 +188,7 @@ export class StorageLiteService {
       }));
     } catch (error: any) {
       console.error(`❌ User generations retrieval error:`, error);
-      return []; // Return empty array instead of throwing
+      throw new Error(`Failed to retrieve user generations: ${error?.message || 'Unknown error'}`);
     }
   }
 

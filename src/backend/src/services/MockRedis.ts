@@ -18,14 +18,16 @@ export class MockRedis {
   }
 
   async incr(key: string): Promise<number> {
-    const current = parseInt(this.get(key) || '0');
+    const currentValue = await this.get(key);
+    const current = parseInt(currentValue || '0');
     const newValue = current + 1;
     await this.set(key, newValue.toString());
     return newValue;
   }
 
   async incrbyfloat(key: string, increment: number): Promise<number> {
-    const current = parseFloat(this.get(key) || '0');
+    const currentValue = await this.get(key);
+    const current = parseFloat(currentValue || '0');
     const newValue = current + increment;
     await this.set(key, newValue.toString());
     return newValue;
@@ -36,7 +38,8 @@ export class MockRedis {
   }
 
   async hincrby(key: string, field: string, increment: number): Promise<number> {
-    const hash = JSON.parse(this.get(key) || '{}');
+    const currentValue = await this.get(key);
+    const hash = JSON.parse(currentValue || '{}');
     hash[field] = (hash[field] || 0) + increment;
     await this.set(key, JSON.stringify(hash));
     return hash[field];
@@ -52,18 +55,21 @@ export class MockRedis {
   }
 
   async zadd(key: string, score: number, member: string): Promise<void> {
-    const sortedSet = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const sortedSet = JSON.parse(currentValue || '[]');
     sortedSet.push({ score, member });
     await this.set(key, JSON.stringify(sortedSet));
   }
 
   async zcount(key: string, min: number, max: number): Promise<number> {
-    const sortedSet = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const sortedSet = JSON.parse(currentValue || '[]');
     return sortedSet.filter((item: any) => item.score >= min && item.score <= max).length;
   }
 
   async zrange(key: string, start: number, stop: number, ...args: string[]): Promise<string[]> {
-    const sortedSet = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const sortedSet = JSON.parse(currentValue || '[]');
     const sorted = sortedSet.sort((a: any, b: any) => a.score - b.score);
     const slice = sorted.slice(start, stop + 1);
     
@@ -79,7 +85,8 @@ export class MockRedis {
   }
 
   async zremrangebyscore(key: string, min: string | number, max: string | number): Promise<void> {
-    const sortedSet = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const sortedSet = JSON.parse(currentValue || '[]');
     const filtered = sortedSet.filter((item: any) => {
       const score = item.score;
       const minScore = min === '-inf' ? -Infinity : Number(min);
@@ -90,33 +97,43 @@ export class MockRedis {
   }
 
   async lpush(key: string, value: string): Promise<void> {
-    const list = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const list = JSON.parse(currentValue || '[]');
     list.unshift(value);
     await this.set(key, JSON.stringify(list));
   }
 
   async ltrim(key: string, start: number, stop: number): Promise<void> {
-    const list = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const list = JSON.parse(currentValue || '[]');
     const trimmed = list.slice(start, stop + 1);
     await this.set(key, JSON.stringify(trimmed));
   }
 
   async lrange(key: string, start: number, stop: number): Promise<string[]> {
-    const list = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const list = JSON.parse(currentValue || '[]');
     return list.slice(start, stop + 1);
   }
 
   async sismember(key: string, member: string): Promise<boolean> {
-    const set = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const set = JSON.parse(currentValue || '[]');
     return set.includes(member);
   }
 
   async sadd(key: string, member: string): Promise<void> {
-    const set = JSON.parse(this.get(key) || '[]');
+    const currentValue = await this.get(key);
+    const set = JSON.parse(currentValue || '[]');
     if (!set.includes(member)) {
       set.push(member);
       await this.set(key, JSON.stringify(set));
     }
+  }
+
+  async del(key: string): Promise<void> {
+    this.store.delete(key);
+    this.expiry.delete(key);
   }
 
   private checkExpiry(key: string): void {

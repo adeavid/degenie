@@ -5,7 +5,7 @@ async function main() {
   console.log('This will test all asset types across all tiers');
   console.log('and generate a comprehensive quality report.\n');
   
-  const tester = new AssetQualityTester();
+  const tester = new AssetQualityTester(process.env['DEGENIE_BASE_URL']);
   const testUserId = `quality-tester-${Date.now()}`;
   
   try {

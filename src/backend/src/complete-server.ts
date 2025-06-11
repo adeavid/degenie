@@ -93,20 +93,31 @@ app.post('/api/generate/:type', async (req, res) => {
     const { prompt, tokenSymbol, userId = 'demo-user', tier = 'free' } = req.body;
 
     // Validate inputs
-    if (!prompt) {
-      res.status(400).json({ error: 'Prompt is required' });
+    if (!prompt?.trim()) {
+      res.status(400).json({ 
+        error: 'Prompt is required', 
+        code: 'MISSING_PROMPT' 
+      });
       return;
     }
 
     if (!['logo', 'meme', 'gif'].includes(type)) {
-      res.status(400).json({ error: 'Invalid asset type. Use: logo, meme, or gif' });
+      res.status(400).json({ 
+        error: 'Invalid asset type. Use: logo, meme, or gif',
+        code: 'INVALID_ASSET_TYPE',
+        validTypes: ['logo', 'meme', 'gif']
+      });
       return;
     }
 
     // Get tier configuration
     const config = tierConfigs[tier as keyof typeof tierConfigs];
     if (!config) {
-      res.status(400).json({ error: 'Invalid tier' });
+      res.status(400).json({ 
+        error: 'Invalid tier',
+        code: 'INVALID_TIER',
+        validTiers: Object.keys(tierConfigs)
+      });
       return;
     }
 
@@ -155,7 +166,7 @@ app.post('/api/generate/:type', async (req, res) => {
     const startTime = Date.now();
 
     if (config.provider === 'together') {
-      result = await generateWithTogether(type, prompt, tokenSymbol, config);
+      result = await generateFreeTier(type, prompt, tokenSymbol, config);
     } else {
       result = await generateWithReplicate(type, prompt, tokenSymbol, config);
     }
@@ -192,9 +203,9 @@ app.post('/api/generate/:type', async (req, res) => {
   }
 });
 
-async function generateWithTogether(type: string, prompt: string, tokenSymbol: string, config: any) {
-  // Reality check: Together.ai doesn't have image generation
-  // For free tier, we'll use Replicate with more limited settings
+async function generateFreeTier(type: string, prompt: string, tokenSymbol: string, config: any) {
+  // Free tier uses Replicate with reduced quality settings
+  // (Originally planned for Together.ai but they don't have image generation)
   return await generateWithReplicate(type, prompt, tokenSymbol, {
     ...config,
     models: {

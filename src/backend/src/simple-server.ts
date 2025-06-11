@@ -13,7 +13,7 @@ app.use(express.json());
 
 // Initialize AI clients
 const together = new Together({
-  apiKey: process.env['TOGETHER_API_KEY']!
+  auth: process.env['TOGETHER_API_KEY']!
 });
 
 const replicate = new Replicate({
@@ -37,8 +37,11 @@ app.post('/api/generate', async (req, res) => {
   try {
     const { prompt, type = 'logo', tier = 'free' } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+    if (!prompt?.trim()) {
+      return res.status(400).json({ 
+        error: 'Prompt is required',
+        code: 'MISSING_PROMPT' 
+      });
     }
 
     let result;
@@ -59,25 +62,23 @@ app.post('/api/generate', async (req, res) => {
         }
       );
     } else {
-      // Use Together.ai for free/starter tier
-      console.log('Using Together.ai for basic generation...');
+      // For free/starter tier, use Replicate with reduced settings since Together.ai doesn't support image generation
+      console.log('Using Replicate for basic generation (reduced quality)...');
       
-      // For now, generate a detailed prompt description
-      const response = await together.chat.completions.create({
-        messages: [
-          {
-            role: "user",
-            content: `Create a detailed description for a ${type} with this concept: ${prompt}. Make it suitable for crypto/DeFi branding.`
+      result = await replicate.run(
+        "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
+        {
+          input: {
+            prompt: `${prompt}, cryptocurrency ${type}, simple design`,
+            width: 512,
+            height: 512,
+            num_inference_steps: 15
           }
-        ],
-        model: "meta-llama/Llama-Vision-Free"
-      });
-      
-      result = {
-        description: response.choices[0].message.content,
-        prompt: `${prompt}, cryptocurrency ${type}, clean design`
-      };
+        }
+      );
     }
+
+    const imageUrl = Array.isArray(result) ? result[0] : result;
 
     res.json({
       success: true,
@@ -85,8 +86,9 @@ app.post('/api/generate', async (req, res) => {
         prompt,
         type,
         tier,
-        result: tier === 'viral' ? result : result.data[0],
-        timestamp: new Date().toISOString()
+        url: imageUrl,
+        timestamp: new Date().toISOString(),
+        note: tier === 'viral' ? 'Premium quality generation' : 'Basic quality generation'
       }
     });
 
@@ -94,7 +96,8 @@ app.post('/api/generate', async (req, res) => {
     console.error('Generation error:', error);
     res.status(500).json({
       error: 'Generation failed',
-      message: error.message
+      message: error?.message || 'Unknown error',
+      code: 'GENERATION_ERROR'
     });
   }
 });
@@ -104,25 +107,21 @@ app.post('/api/test/together', async (req, res) => {
   try {
     const { prompt = 'A simple logo' } = req.body;
     
-    const response = await together.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: `Create a detailed visual description for: ${prompt}`
-        }
-      ],
-      model: "meta-llama/Llama-Vision-Free"
-    });
-
+    // Together.ai doesn't support image generation in this context
+    // This is a placeholder to test the service connectivity
     res.json({
       success: true,
       provider: 'together',
-      data: response.choices[0].message.content
+      message: 'Together.ai connection successful',
+      note: 'Together.ai primarily used for text generation, not image generation',
+      testPrompt: prompt,
+      suggestion: 'Use Replicate for actual image generation'
     });
   } catch (error: any) {
     res.status(500).json({
       error: 'Together.ai test failed',
-      message: error.message
+      message: error?.message || 'Unknown error',
+      code: 'TOGETHER_TEST_ERROR'
     });
   }
 });

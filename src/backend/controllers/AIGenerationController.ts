@@ -44,7 +44,7 @@ export class AIGenerationController {
           error: 'Insufficient credits',
           required: requiredCredits,
           balance: creditBalance,
-          purchaseUrl: '/credits/purchase'
+          purchaseUrl: process.env['CREDITS_PURCHASE_URL'] || '/credits/purchase'
         });
         return;
       }
@@ -236,9 +236,10 @@ export class AIGenerationController {
       const earned = await this.creditService.earnCredits(userId, action, metadata);
       
       if (earned === 0) {
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
         res.status(429).json({ 
           error: 'Daily limit reached for this action',
-          nextAvailable: new Date(Date.now() + 86400000).toISOString()
+          nextAvailable: new Date(Date.now() + ONE_DAY_MS).toISOString()
         });
         return;
       }

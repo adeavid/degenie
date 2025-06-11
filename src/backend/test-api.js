@@ -1,4 +1,3 @@
-const https = require('https');
 const http = require('http');
 
 function testAPI() {
@@ -8,8 +7,8 @@ function testAPI() {
   });
 
   const options = {
-    hostname: 'localhost',
-    port: 4000,
+    hostname: process.env.DEGENIE_HOST || 'localhost',
+    port: Number(process.env.DEGENIE_PORT) || 4000,
     path: '/api/generate/logo',
     method: 'POST',
     headers: {
@@ -37,9 +36,10 @@ function testAPI() {
         console.log('\n✅ Success! API Response:');
         console.log(JSON.stringify(result, null, 2));
         
-        if (result.data && result.data.imageUrl) {
+        const imageUrl = result.data?.imageUrl;
+        if (imageUrl) {
           console.log('\n🎨 Generated Image URL:');
-          console.log(result.data.imageUrl);
+          console.log(imageUrl);
         }
       } catch (error) {
         console.log('\n❌ Error parsing response:');
@@ -59,8 +59,8 @@ function testAPI() {
 // Test health endpoint first
 function testHealth() {
   const options = {
-    hostname: 'localhost',
-    port: 4000,
+    hostname: process.env.DEGENIE_HOST || 'localhost',
+    port: Number(process.env.DEGENIE_PORT) || 4000,
     path: '/health',
     method: 'GET'
   };

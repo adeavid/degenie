@@ -11,8 +11,8 @@ interface StorageResult {
 export class GenerationStorageService {
   private prisma: PrismaClient;
 
-  constructor() {
-    this.prisma = new PrismaClient();
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || new PrismaClient();
   }
 
   async storeGeneration(

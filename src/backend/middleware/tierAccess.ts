@@ -8,14 +8,14 @@ const tierHierarchy: Record<UserTier, number> = {
 };
 
 export function tierAccessMiddleware(allowedTiers: UserTier[]) {
+  const requiredTier = allowedTiers.sort(
+    (a, b) => tierHierarchy[a] - tierHierarchy[b]
+  )[0];
+
   return (req: Request, res: Response, next: NextFunction) => {
     const userTier = (req.user?.tier || 'free') as UserTier;
     
     if (!allowedTiers.includes(userTier)) {
-      const requiredTier = allowedTiers.sort(
-        (a, b) => tierHierarchy[a] - tierHierarchy[b]
-      )[0];
-      
       res.status(403).json({
         error: 'Feature not available for your tier',
         currentTier: userTier,

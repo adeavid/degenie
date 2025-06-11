@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { AssetType } from '../types/ai';
 
-const assetTypes: AssetType[] = ['logo', 'meme', 'gif'];
+const assetTypes = ['logo', 'meme', 'gif'] as const;
+type AssetTypeTuple = typeof assetTypes;
 
 export const generationRequestSchema = z.object({
   prompt: z.string().min(3).max(500),
-  assetType: z.enum(['logo', 'meme', 'gif']),
+  assetType: z.enum(assetTypes),
   tokenSymbol: z.string().min(2).max(10).optional(),
   tokenName: z.string().min(2).max(50).optional(),
   style: z.string().max(100).optional(),
@@ -26,10 +27,10 @@ export const earnCreditsRequestSchema = z.object({
   metadata: z.record(z.any()).optional(),
 });
 
-export function validateGenerationRequest(data: any): { valid: boolean; error?: string } {
+export function validateGenerationRequest(data: unknown): { valid: boolean; error?: string; data?: z.infer<typeof generationRequestSchema> } {
   try {
-    generationRequestSchema.parse(data);
-    return { valid: true };
+    const validated = generationRequestSchema.parse(data);
+    return { valid: true, data: validated };
   } catch (error: any) {
     return { 
       valid: false, 
@@ -38,10 +39,10 @@ export function validateGenerationRequest(data: any): { valid: boolean; error?: 
   }
 }
 
-export function validateBatchRequest(data: any): { valid: boolean; error?: string } {
+export function validateBatchRequest(data: unknown): { valid: boolean; error?: string; data?: z.infer<typeof batchGenerationRequestSchema> } {
   try {
-    batchGenerationRequestSchema.parse(data);
-    return { valid: true };
+    const validated = batchGenerationRequestSchema.parse(data);
+    return { valid: true, data: validated };
   } catch (error: any) {
     return { 
       valid: false, 
@@ -51,23 +52,35 @@ export function validateBatchRequest(data: any): { valid: boolean; error?: strin
 }
 
 export function sanitizePrompt(prompt: string): string {
+  if (typeof prompt !== 'string') {
+    throw new Error('Prompt must be a string');
+  }
+
+  if (prompt.length === 0) {
+    throw new Error('Prompt cannot be empty');
+  }
+
   // Remove potentially harmful content
   const blockedTerms = [
     'nsfw',
     'nude',
     'explicit',
+    'sexual',
+    'violence',
     // Add more as needed
-  ];
+  ] as const;
 
-  let sanitized = prompt.toLowerCase();
+  const normalizedPrompt = prompt.toLowerCase();
   for (const term of blockedTerms) {
-    if (sanitized.includes(term)) {
-      throw new Error('Prompt contains inappropriate content');
+    if (normalizedPrompt.includes(term)) {
+      throw new Error(`Prompt contains inappropriate content: ${term}`);
     }
   }
 
-  // Basic XSS prevention
+  // Enhanced XSS prevention and sanitization
   return prompt
     .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
     .trim();
 }

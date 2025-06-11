@@ -68,79 +68,119 @@ export class CreditService extends EventEmitter {
   }
 
   async getBalance(userId: string): Promise<number> {
-    const cacheKey = `credits:${userId}`;
-    const balance = await this.redis.get(cacheKey);
-    
-    if (balance === null) {
-      // Fetch from database if not in cache
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { credits: true }
-      });
-      
-      balance = user?.credits?.toString() || '0';
-      await this.redis.setex(cacheKey, 300, balance); // Cache for 5 minutes
+    if (!userId?.trim()) {
+      throw new Error('Valid userId is required');
     }
-    
-    return parseFloat(balance);
+
+    try {
+      const cacheKey = `credits:${userId}`;
+      let balance = await this.redis.get(cacheKey);
+      
+      if (balance === null) {
+        // Fetch from database if not in cache
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { credits: true }
+        });
+        
+        balance = user?.credits?.toString() || '0';
+        await this.redis.setex(cacheKey, 300, balance); // Cache for 5 minutes
+      }
+      
+      const numericBalance = parseFloat(balance);
+      return isNaN(numericBalance) ? 0 : Math.max(0, numericBalance); // Ensure non-negative
+    } catch (error: any) {
+      console.error(`Error getting balance for user ${userId}:`, error);
+      return 0; // Safe fallback
+    }
   }
 
   async checkAndDeductCredits(userId: string, amount: number): Promise<boolean> {
-    const balance = await this.getBalance(userId);
-    
-    if (balance < amount) {
-      return false;
+    if (!userId?.trim()) {
+      throw new Error('Valid userId is required');
     }
 
-    // Atomic deduction using Redis
-    const newBalance = await this.redis.incrbyfloat(`credits:${userId}`, -amount);
-    
-    // Update database asynchronously
-    this.updateDatabaseBalance(userId, newBalance);
-    
-    // Record transaction
-    await this.recordTransaction({
-      userId,
-      amount: -amount,
-      type: 'spend',
-      reason: 'Asset generation',
-      timestamp: new Date(),
-    });
+    if (amount <= 0) {
+      throw new Error('Amount must be positive');
+    }
 
-    this.emit('creditsSpent', { userId, amount, newBalance });
-    
-    return true;
+    try {
+      const balance = await this.getBalance(userId);
+      
+      if (balance < amount) {
+        return false;
+      }
+
+      // Atomic deduction using Redis
+      const newBalance = await this.redis.incrbyfloat(`credits:${userId}`, -amount);
+      
+      // Update database asynchronously
+      await this.updateDatabaseBalance(userId, newBalance);
+      
+      // Record transaction
+      await this.recordTransaction({
+        userId,
+        amount: -amount,
+        type: 'spend',
+        reason: 'Asset generation',
+        timestamp: new Date(),
+      });
+
+      this.emit('creditsSpent', { userId, amount, newBalance });
+      
+      return true;
+    } catch (error: any) {
+      console.error(`Error deducting credits for user ${userId}:`, error);
+      throw new Error(`Failed to deduct credits: ${error?.message || 'Unknown error'}`);
+    }
   }
 
   async earnCredits(userId: string, reason: keyof CreditEarningRules, metadata?: Record<string, any>): Promise<number> {
-    const amount = this.earningRules[reason];
-    
-    // Check for daily limits on certain earnings
-    if (await this.checkEarningLimit(userId, reason)) {
-      return 0;
+    if (!userId?.trim()) {
+      throw new Error('Valid userId is required');
     }
 
-    const newBalance = await this.redis.incrbyfloat(`credits:${userId}`, amount);
-    
-    // Update database
-    this.updateDatabaseBalance(userId, newBalance);
-    
-    // Record transaction
-    await this.recordTransaction({
-      userId,
-      amount,
-      type: 'earn',
-      reason,
-      metadata,
-      timestamp: new Date(),
-    });
+    if (!reason) {
+      throw new Error('Valid reason is required');
+    }
 
-    // Achievement check
-    await this.checkAchievements(userId, newBalance);
-    
-    this.emit('creditsEarned', { userId, amount, reason, newBalance });
-    
-    return amount;
+    try {
+      const amount = this.earningRules[reason];
+      
+      if (amount <= 0) {
+        throw new Error(`Invalid earning amount for reason: ${reason}`);
+      }
+      
+      // Check for daily limits on certain earnings
+      if (await this.checkEarningLimit(userId, reason)) {
+        return 0;
+      }
+
+      const newBalance = await this.redis.incrbyfloat(`credits:${userId}`, amount);
+      
+      // Update database
+      await this.updateDatabaseBalance(userId, newBalance);
+      
+      // Record transaction
+      await this.recordTransaction({
+        userId,
+        amount,
+        type: 'earn',
+        reason,
+        metadata,
+        timestamp: new Date(),
+      });
+
+      // Achievement check
+      await this.checkAchievements(userId, newBalance);
+      
+      this.emit('creditsEarned', { userId, amount, reason, newBalance });
+      
+      return amount;
+    } catch (error: any) {
+      console.error(`Error earning credits for user ${userId}:`, error);
+      throw new Error(`Failed to earn credits: ${error?.message || 'Unknown error'}`);
+    }
   }
 
   async refundCredits(userId: string, amount: number): Promise<void> {
@@ -180,30 +220,62 @@ export class CreditService extends EventEmitter {
     return count > limit;
   }
 
-  private async updateDatabaseBalance(userId: string, balance: number): void {
-    // Batch database updates for performance
-    setTimeout(async () => {
-      try {
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: { credits: balance }
-        });
-      } catch (error) {
-        console.error('Failed to update database balance:', error);
-      }
-    }, 100);
+  private async updateDatabaseBalance(userId: string, balance: number): Promise<void> {
+    if (!userId?.trim()) {
+      throw new Error('Valid userId is required');
+    }
+
+    if (balance < 0) {
+      throw new Error('Balance cannot be negative');
+    }
+
+    try {
+      // Use immediate update instead of setTimeout for data consistency
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { credits: balance }
+      });
+    } catch (error: any) {
+      console.error(`Failed to update database balance for user ${userId}:`, error);
+      
+      // Clear cache on database update failure to prevent inconsistency
+      await this.redis.del(`credits:${userId}`).catch(() => {
+        console.error('Failed to clear cache after database update failure');
+      });
+      
+      throw new Error(`Database update failed: ${error?.message || 'Unknown error'}`);
+    }
   }
 
   private async recordTransaction(transaction: CreditTransaction): Promise<void> {
-    await this.prisma.creditTransaction.create({
-      data: transaction
-    });
+    try {
+      // Get current balance to calculate balanceBefore and balanceAfter
+      const currentBalance = await this.getBalance(transaction.userId);
+      const balanceBefore = transaction.type === 'earn' ? currentBalance - transaction.amount : currentBalance + Math.abs(transaction.amount);
+      const balanceAfter = currentBalance;
 
-    // Keep recent transactions in Redis for quick access
-    const key = `transactions:${transaction.userId}`;
-    await this.redis.lpush(key, JSON.stringify(transaction));
-    await this.redis.ltrim(key, 0, 99); // Keep last 100 transactions
-    await this.redis.expire(key, 2592000); // 30 days
+      await this.prisma.creditTransaction.create({
+        data: {
+          userId: transaction.userId,
+          amount: transaction.amount,
+          type: transaction.type,
+          reason: transaction.reason,
+          metadata: transaction.metadata ? JSON.stringify(transaction.metadata) : null,
+          balanceBefore,
+          balanceAfter,
+          timestamp: transaction.timestamp,
+        }
+      });
+
+      // Keep recent transactions in Redis for quick access
+      const key = `transactions:${transaction.userId}`;
+      await this.redis.lpush(key, JSON.stringify(transaction));
+      await this.redis.ltrim(key, 0, 99); // Keep last 100 transactions
+      await this.redis.expire(key, 2592000); // 30 days
+    } catch (error: any) {
+      console.error(`Failed to record transaction for user ${transaction.userId}:`, error);
+      throw new Error(`Transaction recording failed: ${error?.message || 'Unknown error'}`);
+    }
   }
 
   private async checkAchievements(userId: string, balance: number): Promise<void> {
@@ -232,20 +304,41 @@ export class CreditService extends EventEmitter {
   }
 
   async getTransactionHistory(userId: string, limit = 20): Promise<CreditTransaction[]> {
-    const cached = await this.redis.lrange(`transactions:${userId}`, 0, limit - 1);
-    
-    if (cached.length > 0) {
-      return cached.map(t => JSON.parse(t));
+    if (!userId?.trim()) {
+      throw new Error('Valid userId is required');
     }
 
-    // Fallback to database
-    const transactions = await this.prisma.creditTransaction.findMany({
-      where: { userId },
-      orderBy: { timestamp: 'desc' },
-      take: limit,
-    });
+    if (limit <= 0 || limit > 100) {
+      throw new Error('Limit must be between 1 and 100');
+    }
 
-    return transactions;
+    try {
+      const cached = await this.redis.lrange(`transactions:${userId}`, 0, limit - 1);
+      
+      if (cached.length > 0) {
+        return cached.map((t: string) => JSON.parse(t) as CreditTransaction);
+      }
+
+      // Fallback to database
+      const transactions = await this.prisma.creditTransaction.findMany({
+        where: { userId },
+        orderBy: { timestamp: 'desc' },
+        take: limit,
+      });
+
+      // Transform database records to match CreditTransaction interface
+      return transactions.map(t => ({
+        userId: t.userId,
+        amount: t.amount,
+        type: t.type as 'earn' | 'spend' | 'refund',
+        reason: t.reason,
+        metadata: t.metadata ? JSON.parse(t.metadata) : undefined,
+        timestamp: t.timestamp,
+      }));
+    } catch (error: any) {
+      console.error(`Error getting transaction history for user ${userId}:`, error);
+      throw new Error(`Failed to retrieve transaction history: ${error?.message || 'Unknown error'}`);
+    }
   }
 
   async initializeNewUser(userId: string): Promise<void> {

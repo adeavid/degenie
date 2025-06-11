@@ -32,7 +32,7 @@ npm install
 Copy `.env.example` to `.env` and fill in your credentials:
 
 ```bash
-cp ../../.env.example .env
+cp .env.example .env
 ```
 
 Required variables:

@@ -1,5 +1,11 @@
 import axios from 'axios';
 
+interface Quality {
+  width: number;
+  height: number;
+  steps: number;
+}
+
 async function quickQualityTest() {
   console.log('🧪 Quick Quality Test - Testing 3 assets\n');
   
@@ -20,7 +26,7 @@ async function quickQualityTest() {
   const tests = [
     { type: 'logo', tier: 'free', prompt: 'bitcoin rocket logo' },
     { type: 'meme', tier: 'starter', prompt: 'doge to the moon' },
-    { type: 'logo', tier: 'viral', prompt: 'ethereum dragon' }
+    { type: 'gif', tier: 'viral', prompt: 'ethereum dragon breathing fire' }
   ];
   
   console.log('Running tests...\n');
@@ -57,7 +63,7 @@ async function quickQualityTest() {
   console.log('✅ Quick test complete!');
 }
 
-function calculateSimpleScore(quality: any, tier: string): number {
+function calculateSimpleScore(quality: Quality, tier: string): number {
   let score = 50; // Base score
   
   // Resolution scoring

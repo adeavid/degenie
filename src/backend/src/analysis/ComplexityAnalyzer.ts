@@ -111,7 +111,7 @@ export class ComplexityAnalyzer {
     const dependencies: string[] = [];
     importMatches.forEach(imp => {
       const match = imp.match(/from\s+['"`]([^'"`]+)['"`]/);
-      if (match && match[1] && !match[1].startsWith('.')) {
+      if (match?.[1] && !match[1].startsWith('.')) {
         dependencies.push(match[1]);
       }
     });

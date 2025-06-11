@@ -68,6 +68,11 @@ function deductCredits(userId: string, amount: number): boolean {
   return false;
 }
 
+function addCredits(userId: string, amount: number): void {
+  const current = getCredits(userId);
+  userCredits.set(userId, current + amount);
+}
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ 
@@ -87,20 +92,31 @@ app.post('/api/generate/:type', async (req, res) => {
     const { prompt, tokenSymbol, userId = 'demo-user', tier = 'free' } = req.body;
 
     // Validate inputs
-    if (!prompt) {
-      res.status(400).json({ error: 'Prompt is required' });
+    if (!prompt?.trim()) {
+      res.status(400).json({ 
+        error: 'Prompt is required', 
+        code: 'MISSING_PROMPT' 
+      });
       return;
     }
 
     if (!['logo', 'meme', 'gif'].includes(type)) {
-      res.status(400).json({ error: 'Invalid asset type. Use: logo, meme, or gif' });
+      res.status(400).json({ 
+        error: 'Invalid asset type. Use: logo, meme, or gif',
+        code: 'INVALID_ASSET_TYPE',
+        validTypes: ['logo', 'meme', 'gif']
+      });
       return;
     }
 
     // Get tier configuration
     const config = tierConfigs[tier as keyof typeof tierConfigs];
     if (!config) {
-      res.status(400).json({ error: 'Invalid tier. Use: free, starter, or viral' });
+      res.status(400).json({ 
+        error: 'Invalid tier. Use: free, starter, or viral',
+        code: 'INVALID_TIER',
+        validTiers: Object.keys(tierConfigs)
+      });
       return;
     }
 
@@ -134,13 +150,22 @@ app.post('/api/generate/:type', async (req, res) => {
     console.log(`🎨 Generating ${type} for ${tier} tier (${cost} credits)...`);
     console.log(`📝 Prompt: ${prompt}`);
     
-    // Generate asset
-    const startTime = Date.now();
-    const result = await generateAsset(type, prompt, tokenSymbol, config);
-
-    // Deduct credits
+    // Deduct credits BEFORE generation for atomic operation
     deductCredits(userId, cost);
-    const newBalance = getCredits(userId);
+    let newBalance = getCredits(userId);
+    
+    let result;
+    const startTime = Date.now();
+    try {
+      // Generate asset
+      result = await generateAsset(type, prompt, tokenSymbol, config);
+    } catch (error) {
+      // Refund credits if generation fails
+      console.log(`❌ Generation failed, refunding ${cost} credits`);
+      addCredits(userId, cost);
+      newBalance = getCredits(userId);
+      throw error; // Re-throw to handle in outer catch
+    }
 
     const endTime = Date.now();
 

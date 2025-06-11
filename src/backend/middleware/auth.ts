@@ -2,7 +2,24 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Type for JWT payload
+interface JWTPayload {
+  userId: string;
+  iat?: number;
+  exp?: number;
+}
+
+// Valid tier types
+type UserTier = 'free' | 'starter' | 'viral';
+
+// Singleton pattern to prevent multiple DB connections during hot-reload
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 declare global {
   namespace Express {
@@ -29,7 +46,7 @@ export async function authMiddleware(
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
 
     // Verify user exists and get current tier
     const user = await prisma.user.findUnique({
@@ -53,12 +70,13 @@ export async function authMiddleware(
       return;
     }
 
-    // Determine effective tier
-    let effectiveTier = user.tier;
+    // Determine effective tier with timezone-safe comparison
+    let effectiveTier: UserTier = user.tier as UserTier;
     if (user.subscription && 
         user.subscription.status === 'active' && 
-        user.subscription.expiresAt > new Date()) {
-      effectiveTier = user.subscription.tier;
+        user.subscription.expiresAt && 
+        user.subscription.expiresAt.getTime() > Date.now()) {
+      effectiveTier = user.subscription.tier as UserTier;
     }
 
     req.user = {
