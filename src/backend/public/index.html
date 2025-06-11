@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeGenie AI Test Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #0a0a0a; color: #fff; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #00d4aa; text-align: center; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; color: #00d4aa; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #333; background: #1a1a1a; color: #fff; border-radius: 5px; }
+        button { background: #00d4aa; color: #000; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #00b894; }
+        .result { margin-top: 20px; padding: 20px; background: #1a1a1a; border-radius: 5px; border: 1px solid #333; }
+        .loading { color: #00d4aa; }
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; }
+        img { max-width: 100%; border-radius: 10px; margin-top: 10px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .status.healthy { background: #2d5016; color: #51cf66; }
+        .status.error { background: #4a1616; color: #ff6b6b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧞‍♂️ DeGenie AI Generator</h1>
+        
+        <div id="health-status"></div>
+        
+        <form id="generate-form">
+            <div class="form-group">
+                <label for="type">Asset Type:</label>
+                <select id="type" name="type">
+                    <option value="logo">Logo</option>
+                    <option value="meme">Meme</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="prompt">Prompt:</label>
+                <input type="text" id="prompt" name="prompt" placeholder="e.g., rocket going to the moon" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="tokenSymbol">Token Symbol:</label>
+                <input type="text" id="tokenSymbol" name="tokenSymbol" placeholder="e.g., ROCKET" maxlength="10">
+            </div>
+            
+            <button type="submit">🚀 Generate Asset</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Check health on load
+        checkHealth();
+        
+        // Handle URL parameters on load
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const type = urlParams.get('type');
+            const prompt = urlParams.get('prompt');
+            const tokenSymbol = urlParams.get('tokenSymbol');
+            
+            if (type && prompt) {
+                document.getElementById('type').value = type;
+                document.getElementById('prompt').value = decodeURIComponent(prompt);
+                if (tokenSymbol) {
+                    document.getElementById('tokenSymbol').value = decodeURIComponent(tokenSymbol);
+                }
+                
+                // Auto-submit if all required fields are present
+                if (prompt) {
+                    document.getElementById('generate-form').dispatchEvent(new Event('submit'));
+                }
+            }
+        });
+        
+        async function checkHealth() {
+            const statusDiv = document.getElementById('health-status');
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                statusDiv.innerHTML = `
+                    <div class="status healthy">
+                        ✅ Server Status: ${data.status}
+                        <br>🔑 Replicate: ${data.services.replicate}
+                        <br>⏰ ${new Date(data.timestamp).toLocaleString()}
+                    </div>
+                `;
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="status error">
+                        ❌ Server not responding: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        document.getElementById('generate-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                prompt: formData.get('prompt'),
+                tokenSymbol: formData.get('tokenSymbol')
+            };
+            
+            const type = formData.get('type');
+            const resultDiv = document.getElementById('result');
+            
+            // Show loading
+            resultDiv.innerHTML = `
+                <div class="result loading">
+                    <h3>🎨 Generating ${type}...</h3>
+                    <p>This may take 10-30 seconds. Please wait...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(\`/api/generate/\${type}\`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = \`
+                        <div class="result success">
+                            <h3>✅ \${type.charAt(0).toUpperCase() + type.slice(1)} Generated!</h3>
+                            <p><strong>Original Prompt:</strong> \${result.data.originalPrompt}</p>
+                            <p><strong>Optimized Prompt:</strong> \${result.data.prompt}</p>
+                            <p><strong>Token Symbol:</strong> \${result.data.tokenSymbol}</p>
+                            <p><strong>Model:</strong> \${result.data.model}</p>
+                            <p><strong>Provider:</strong> \${result.data.provider}</p>
+                            <img src="\${result.data.imageUrl}" alt="Generated \${type}" />
+                            <p><a href="\${result.data.imageUrl}" target="_blank">🔗 Open in new tab</a></p>
+                        </div>
+                    \`;
+                } else {
+                    throw new Error(result.error || 'Generation failed');
+                }
+            } catch (error) {
+                let errorMessage = error.message;
+                let suggestions = '';
+                
+                if (errorMessage.includes('NSFW')) {
+                    suggestions = '<p><strong>💡 Tip:</strong> Try a different prompt. Some words may be flagged as inappropriate.</p>';
+                }
+                
+                resultDiv.innerHTML = \`
+                    <div class="result error">
+                        <h3>❌ Generation Failed</h3>
+                        <p>\${errorMessage}</p>
+                        \${suggestions}
+                        <p><strong>Safe prompts to try:</strong></p>
+                        <ul>
+                            <li>"happy crypto trader"</li>
+                            <li>"rocket going to mars"</li>
+                            <li>"diamond hands hodling"</li>
+                            <li>"bull market celebration"</li>
+                        </ul>
+                    </div>
+                \`;
+            }
+        });
+    </script>
+</body>
+</html>

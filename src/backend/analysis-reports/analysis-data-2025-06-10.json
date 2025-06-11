@@ -1,0 +1,450 @@
+{
+  "complexity": {
+    "overall": {
+      "totalFiles": 5,
+      "totalLinesOfCode": 0,
+      "totalFunctions": 0,
+      "averageComplexity": 0,
+      "complexityScore": 5
+    },
+    "components": [
+      {
+        "name": "Main Server",
+        "linesOfCode": 0,
+        "functions": 0,
+        "dependencies": [],
+        "cyclomaticComplexity": 0,
+        "maintainabilityIndex": 0,
+        "riskLevel": "low"
+      },
+      {
+        "name": "Storage Service",
+        "linesOfCode": 0,
+        "functions": 0,
+        "dependencies": [],
+        "cyclomaticComplexity": 0,
+        "maintainabilityIndex": 0,
+        "riskLevel": "low"
+      },
+      {
+        "name": "IPFS Service",
+        "linesOfCode": 0,
+        "functions": 0,
+        "dependencies": [],
+        "cyclomaticComplexity": 0,
+        "maintainabilityIndex": 0,
+        "riskLevel": "low"
+      },
+      {
+        "name": "Quality Testing",
+        "linesOfCode": 0,
+        "functions": 0,
+        "dependencies": [],
+        "cyclomaticComplexity": 0,
+        "maintainabilityIndex": 0,
+        "riskLevel": "low"
+      },
+      {
+        "name": "Report Generator",
+        "linesOfCode": 0,
+        "functions": 0,
+        "dependencies": [],
+        "cyclomaticComplexity": 0,
+        "maintainabilityIndex": 0,
+        "riskLevel": "low"
+      }
+    ],
+    "integrations": {
+      "externalAPIs": [
+        "Replicate API",
+        "Together.ai API",
+        "IPFS (Infura)",
+        "Mock IPFS (Development)"
+      ],
+      "databases": [
+        "SQLite (Development)",
+        "PostgreSQL (Production)",
+        "Prisma ORM"
+      ],
+      "storageSystems": [
+        "IPFS Distributed Storage",
+        "Local File System",
+        "In-Memory Credit Store"
+      ],
+      "totalIntegrationPoints": 10
+    },
+    "riskAssessment": {
+      "highRiskComponents": [],
+      "criticalDependencies": [
+        "Replicate API (Single point of failure)",
+        "Database connection (Data persistence)",
+        "IPFS service (Storage reliability)",
+        "Credit system (Business logic)"
+      ],
+      "singlePointsOfFailure": [
+        "Main server process",
+        "Database connection",
+        "External API availability",
+        "IPFS gateway access"
+      ]
+    }
+  },
+  "performance": {
+    "singleRequest": [
+      {
+        "endpoint": "/api/generate/logo",
+        "tier": "free",
+        "assetType": "logo",
+        "responseTime": 71,
+        "throughput": 14.132877312492038,
+        "errorRate": 0,
+        "memoryUsage": {
+          "rss": -3600384,
+          "heapTotal": 0,
+          "heapUsed": 177872,
+          "external": 2211,
+          "arrayBuffers": 2171
+        },
+        "costEfficiency": 150
+      },
+      {
+        "endpoint": "/api/generate/logo",
+        "tier": "starter",
+        "assetType": "logo",
+        "responseTime": 6,
+        "throughput": 170.95235677483515,
+        "errorRate": 0,
+        "memoryUsage": {
+          "rss": 102400,
+          "heapTotal": 0,
+          "heapUsed": 117048,
+          "external": 2189,
+          "arrayBuffers": 2189
+        },
+        "costEfficiency": 90
+      },
+      {
+        "endpoint": "/api/generate/logo",
+        "tier": "viral",
+        "assetType": "logo",
+        "responseTime": 4,
+        "throughput": 279.2418583545552,
+        "errorRate": 0,
+        "memoryUsage": {
+          "rss": 69632,
+          "heapTotal": 0,
+          "heapUsed": 91752,
+          "external": 2185,
+          "arrayBuffers": 2185
+        },
+        "costEfficiency": 66.66666666666667
+      },
+      {
+        "endpoint": "/api/generate/meme",
+        "tier": "free",
+        "assetType": "meme",
+        "responseTime": 4,
+        "throughput": 284.81581388539934,
+        "errorRate": 0,
+        "memoryUsage": {
+          "rss": 81920,
+          "heapTotal": 0,
+          "heapUsed": 113144,
+          "external": 2143,
+          "arrayBuffers": 2143
+        },
+        "costEfficiency": 750
+      },
+      {
+        "endpoint": "/api/generate/meme",
+        "tier": "starter",
+        "assetType": "meme",
+        "responseTime": 3,
+        "throughput": 334.6114374873959,
+        "errorRate": 0,
+        "memoryUsage": {
+          "rss": 57344,
+          "heapTotal": 0,
+          "heapUsed": 107112,
+          "external": 2165,
+          "arrayBuffers": 2165
+        },
+        "costEfficiency": 450
+      },
+      {
+        "endpoint": "/api/generate/gif",
+        "tier": "starter",
+        "assetType": "gif",
+        "responseTime": 3,
+        "throughput": 317.76718977501037,
+        "errorRate": 0,
+        "memoryUsage": {
+          "rss": 90112,
+          "heapTotal": 0,
+          "heapUsed": 97104,
+          "external": 2103,
+          "arrayBuffers": 2103
+        },
+        "costEfficiency": 180
+      },
+      {
+        "endpoint": "/api/generate/gif",
+        "tier": "viral",
+        "assetType": "gif",
+        "responseTime": 2,
+        "throughput": 404.14915690444394,
+        "errorRate": 0,
+        "memoryUsage": {
+          "rss": 53248,
+          "heapTotal": 0,
+          "heapUsed": 109824,
+          "external": 2127,
+          "arrayBuffers": 2127
+        },
+        "costEfficiency": 100
+      }
+    ],
+    "loadTest": [
+      {
+        "scenario": "Light Load",
+        "concurrentUsers": 2,
+        "totalRequests": 6,
+        "successfulRequests": 6,
+        "failedRequests": 0,
+        "averageResponseTime": 13,
+        "maxResponseTime": 15,
+        "minResponseTime": 12,
+        "requestsPerSecond": 330.2,
+        "errorRate": 0
+      },
+      {
+        "scenario": "Medium Load",
+        "concurrentUsers": 5,
+        "totalRequests": 10,
+        "successfulRequests": 4,
+        "failedRequests": 6,
+        "averageResponseTime": 48,
+        "maxResponseTime": 49,
+        "minResponseTime": 48,
+        "requestsPerSecond": 188.6,
+        "errorRate": 60
+      },
+      {
+        "scenario": "Heavy Load",
+        "concurrentUsers": 10,
+        "totalRequests": 10,
+        "successfulRequests": 0,
+        "failedRequests": 10,
+        "averageResponseTime": 0,
+        "maxResponseTime": 0,
+        "minResponseTime": 0,
+        "requestsPerSecond": 595.1,
+        "errorRate": 100
+      }
+    ],
+    "systemHealth": {
+      "status": "healthy",
+      "responseTime": 11,
+      "services": {
+        "replicate": "configured",
+        "creditSystem": "active"
+      },
+      "timestamp": "2025-06-10T21:38:22.951Z"
+    },
+    "recommendations": [
+      "⚡ Excellent response times - system well optimized",
+      "🚨 High error rate under load - implement better error handling",
+      "🚀 Good throughput under load - system handles concurrency well",
+      "💎 Excellent cost efficiency - good value proposition"
+    ]
+  },
+  "cost": {
+    "operational": {
+      "aiServices": [
+        {
+          "api": "Replicate",
+          "callsPerDay": 100,
+          "costPerCall": 0.00115,
+          "dailyCost": 0.11499999999999999,
+          "monthlyProjection": 3.4499999999999997,
+          "tier": "free",
+          "model": "stable-diffusion"
+        },
+        {
+          "api": "Together.ai",
+          "callsPerDay": 150,
+          "costPerCall": 0.0003,
+          "dailyCost": 0.045,
+          "monthlyProjection": 1.3499999999999999,
+          "tier": "free",
+          "model": "flux-schnell"
+        },
+        {
+          "api": "Together.ai",
+          "callsPerDay": 20,
+          "costPerCall": 0.0003,
+          "dailyCost": 0.005999999999999999,
+          "monthlyProjection": 0.17999999999999997,
+          "tier": "free",
+          "model": "flux-schnell"
+        },
+        {
+          "api": "Replicate",
+          "callsPerDay": 50,
+          "costPerCall": 0.00115,
+          "dailyCost": 0.057499999999999996,
+          "monthlyProjection": 1.7249999999999999,
+          "tier": "starter",
+          "model": "stable-diffusion"
+        },
+        {
+          "api": "Together.ai",
+          "callsPerDay": 75,
+          "costPerCall": 0.0003,
+          "dailyCost": 0.0225,
+          "monthlyProjection": 0.6749999999999999,
+          "tier": "starter",
+          "model": "flux-schnell"
+        },
+        {
+          "api": "Together.ai",
+          "callsPerDay": 30,
+          "costPerCall": 0.0003,
+          "dailyCost": 0.009,
+          "monthlyProjection": 0.26999999999999996,
+          "tier": "starter",
+          "model": "flux-schnell"
+        },
+        {
+          "api": "Replicate",
+          "callsPerDay": 25,
+          "costPerCall": 0.00115,
+          "dailyCost": 0.028749999999999998,
+          "monthlyProjection": 0.8624999999999999,
+          "tier": "viral",
+          "model": "stable-diffusion"
+        },
+        {
+          "api": "Together.ai",
+          "callsPerDay": 40,
+          "costPerCall": 0.0003,
+          "dailyCost": 0.011999999999999999,
+          "monthlyProjection": 0.35999999999999993,
+          "tier": "viral",
+          "model": "flux-schnell"
+        },
+        {
+          "api": "Replicate",
+          "callsPerDay": 15,
+          "costPerCall": 0.003,
+          "dailyCost": 0.045,
+          "monthlyProjection": 1.3499999999999999,
+          "tier": "viral",
+          "model": "flux-dev"
+        }
+      ],
+      "infrastructure": {
+        "database": 15,
+        "storage": 25,
+        "bandwidth": 35,
+        "hosting": 50
+      },
+      "development": {
+        "complexity": 2000,
+        "maintenance": 500,
+        "scaling": 1500
+      },
+      "total": {
+        "daily": 4.51,
+        "monthly": 635.22,
+        "yearly": 7622.67
+      }
+    },
+    "efficiency": {
+      "revenuePerCredit": 0.15,
+      "costPerCredit": 0.005,
+      "profitMargin": 97,
+      "breakEvenPoint": 4235,
+      "scalingRecommendations": []
+    },
+    "recommendations": [
+      "💰 High profit margin - consider competitive pricing"
+    ],
+    "projections": {
+      "conservative": {
+        "month3": {
+          "users": 1107,
+          "monthlyCost": 751,
+          "dailyCost": 25.02,
+          "aiCostPercentage": 70
+        },
+        "month6": {
+          "users": 1225,
+          "monthlyCost": 887,
+          "dailyCost": 29.57,
+          "aiCostPercentage": 70
+        },
+        "month12": {
+          "users": 1500,
+          "monthlyCost": 1239,
+          "dailyCost": 41.29,
+          "aiCostPercentage": 70
+        }
+      },
+      "realistic": {
+        "month3": {
+          "users": 1257,
+          "monthlyCost": 950,
+          "dailyCost": 31.66,
+          "aiCostPercentage": 70
+        },
+        "month6": {
+          "users": 1581,
+          "monthlyCost": 1420,
+          "dailyCost": 47.35,
+          "aiCostPercentage": 70
+        },
+        "month12": {
+          "users": 2500,
+          "monthlyCost": 3176,
+          "dailyCost": 105.87,
+          "aiCostPercentage": 70
+        }
+      },
+      "aggressive": {
+        "month3": {
+          "users": 1495,
+          "monthlyCost": 1299,
+          "dailyCost": 43.31,
+          "aiCostPercentage": 70
+        },
+        "month6": {
+          "users": 2236,
+          "monthlyCost": 2657,
+          "dailyCost": 88.58,
+          "aiCostPercentage": 70
+        },
+        "month12": {
+          "users": 5000,
+          "monthlyCost": 11116,
+          "dailyCost": 370.55,
+          "aiCostPercentage": 70
+        }
+      }
+    }
+  },
+  "timestamp": "2025-06-10T21:38:16.666Z",
+  "summary": {
+    "overallScore": 80,
+    "riskLevel": "low",
+    "keyFindings": [
+      "Moderate complexity (5/10) - manageable scale",
+      "Excellent response times (avg: 13ms)",
+      "High error rate under load (100%)",
+      "High profit margin (97%) - good economics"
+    ],
+    "priorityActions": [
+      "Improve error handling and resilience"
+    ]
+  }
+}
