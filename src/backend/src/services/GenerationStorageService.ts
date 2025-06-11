@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { MockIPFS } from './MockIPFS';
+import { downloadImage, uploadToIPFS, getIPFSUrl } from './MockIPFS';
 
 interface StorageResult {
   id: string;
@@ -32,12 +32,12 @@ export class GenerationStorageService {
       console.log(`📦 Starting permanent storage for ${type} generation...`);
       
       // 1. Download the image from Replicate/Together.ai
-      const imageBuffer = await MockIPFS.downloadImage(resultUrl);
+      const imageBuffer = await downloadImage(resultUrl);
       
       // 2. Upload image to IPFS (mock for development)
       console.log(`🌐 Uploading image to IPFS...`);
-      const ipfsHash = await MockIPFS.uploadToIPFS(imageBuffer);
-      const ipfsUrl = MockIPFS.getIPFSUrl(ipfsHash);
+      const ipfsHash = await uploadToIPFS(imageBuffer);
+      const ipfsUrl = getIPFSUrl(ipfsHash);
       
       // 3. Create comprehensive metadata
       const fullMetadata = {
@@ -138,7 +138,7 @@ export class GenerationStorageService {
       return {
         ...generation,
         metadata: generation.metadata ? JSON.parse(generation.metadata) : null,
-        ipfsUrl: generation.ipfsHash ? MockIPFS.getIPFSUrl(generation.ipfsHash) : null,
+        ipfsUrl: generation.ipfsHash ? getIPFSUrl(generation.ipfsHash) : null,
       };
     } catch (error: any) {
       console.error(`❌ Retrieval error:`, error);
@@ -167,7 +167,7 @@ export class GenerationStorageService {
       return generations.map(gen => ({
         ...gen,
         metadata: gen.metadata ? JSON.parse(gen.metadata) : null,
-        ipfsUrl: gen.ipfsHash ? MockIPFS.getIPFSUrl(gen.ipfsHash) : null,
+        ipfsUrl: gen.ipfsHash ? getIPFSUrl(gen.ipfsHash) : null,
       }));
     } catch (error: any) {
       console.error(`❌ User generations retrieval error:`, error);

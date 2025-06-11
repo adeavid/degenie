@@ -180,20 +180,20 @@ export class AssetQualityTester {
     // Since we can't actually analyze images in demo mode,
     // we'll use heuristics based on the generation data
     
-    // Prompt adherence: Check if optimized prompt contains expected keywords
-    const optimizedPrompt = data.optimizedPrompt.toLowerCase();
+    // Prompt adherence: Check if optimized prompt contains expected keywords with defensive fallback
+    const optimizedPrompt = (data.optimizedPrompt || data.prompt || _prompt).toLowerCase();
     const matchedKeywords = expectedKeywords.filter(kw => 
       optimizedPrompt.includes(kw.toLowerCase())
     );
     const promptAdherence = (matchedKeywords.length / expectedKeywords.length) * 100;
 
-    // Technical quality: Based on tier settings
-    const qualitySettings = data.quality;
+    // Technical quality: Based on tier settings with defensive checks
+    const qualitySettings = data.quality || {};
     let technicalQuality = 50; // Base score
     
-    if (qualitySettings.width >= 1024) technicalQuality += 25;
-    if (qualitySettings.steps >= 25) technicalQuality += 15;
-    if (qualitySettings.steps >= 50) technicalQuality += 10;
+    if ((qualitySettings.width || 0) >= 1024) technicalQuality += 25;
+    if ((qualitySettings.steps || 0) >= 25) technicalQuality += 15;
+    if ((qualitySettings.steps || 0) >= 50) technicalQuality += 10;
 
     // Crypto relevance: Check for crypto keywords in prompt
     const cryptoKeywords = ['crypto', 'bitcoin', 'ethereum', 'defi', 'nft', 'web3', 'token', 'coin'];

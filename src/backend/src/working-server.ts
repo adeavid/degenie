@@ -9,9 +9,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize Replicate client
+// Initialize Replicate client with validation
+const replicateToken = process.env['REPLICATE_API_TOKEN'];
+if (!replicateToken) {
+  throw new Error('REPLICATE_API_TOKEN environment variable is required');
+}
+
 const replicate = new Replicate({
-  auth: process.env['REPLICATE_API_TOKEN']!
+  auth: replicateToken
 });
 
 // Simple in-memory credit system for demo

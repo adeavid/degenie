@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { UserTier } from '../types/ai';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
+import { getRedisInstance } from '../lib/redis';
 
 export async function getUserTier(userId: string): Promise<UserTier> {
   if (!userId?.trim()) {
@@ -66,32 +65,32 @@ export async function updateUserTier(userId: string, tier: UserTier): Promise<vo
   }
 }
 
+// Tier limits configuration - extracted for reusability
+const TIER_LIMITS: Record<UserTier, Record<string, number>> = {
+  free: {
+    dailyGenerations: 10,
+    tokensPerMonth: 3,
+    chainsSupported: 1,
+  },
+  starter: {
+    dailyGenerations: 100,
+    tokensPerMonth: 10,
+    chainsSupported: 2,
+  },
+  viral: {
+    dailyGenerations: 1000,
+    tokensPerMonth: -1, // unlimited
+    chainsSupported: -1, // all chains
+  }
+};
+
 export async function checkUserLimits(userId: string, action: string): Promise<boolean> {
   if (!userId?.trim() || !action?.trim()) {
     return false;
   }
 
   const tier = await getUserTier(userId);
-  
-  const limits: Record<UserTier, Record<string, number>> = {
-    free: {
-      dailyGenerations: 10,
-      tokensPerMonth: 3,
-      chainsSupported: 1,
-    },
-    starter: {
-      dailyGenerations: 100,
-      tokensPerMonth: 10,
-      chainsSupported: 2,
-    },
-    viral: {
-      dailyGenerations: 1000,
-      tokensPerMonth: -1, // unlimited
-      chainsSupported: -1, // all chains
-    }
-  };
-
-  const userLimits = limits[tier];
+  const userLimits = TIER_LIMITS[tier];
   const limit = userLimits?.[action];
   
   // If action is not defined for this tier, deny access
@@ -108,9 +107,8 @@ export async function checkUserLimits(userId: string, action: string): Promise<b
 
 async function getUserUsage(userId: string, action: string): Promise<number> {
   try {
-    // Create Redis client if needed
-    const { MockRedis } = await import('../src/services/MockRedis');
-    const redis = new MockRedis();
+    // Use shared Redis instance to ensure data persists
+    const redis = getRedisInstance();
     
     // Use daily usage key
     const today = new Date().toISOString().split('T')[0];
@@ -127,8 +125,8 @@ async function getUserUsage(userId: string, action: string): Promise<number> {
 
 export async function incrementUserUsage(userId: string, action: string): Promise<void> {
   try {
-    const { MockRedis } = await import('../src/services/MockRedis');
-    const redis = new MockRedis();
+    // Use shared Redis instance to ensure data persists
+    const redis = getRedisInstance();
     
     const today = new Date().toISOString().split('T')[0];
     const usageKey = `usage:${userId}:${action}:${today}`;

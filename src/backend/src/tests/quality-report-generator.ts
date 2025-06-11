@@ -1,6 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+// HTML escaping function to prevent XSS
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 interface QualityReportData {
   timestamp: string;
   results: Array<{
@@ -191,9 +201,9 @@ export class QualityReportGenerator {
             <tbody>
                 ${data.results.map(result => `
                     <tr>
-                        <td>${result.type.toUpperCase()}</td>
-                        <td><span class="tier-badge tier-${result.tier}">${result.tier}</span></td>
-                        <td>${result.prompt}</td>
+                        <td>${escapeHtml(result.type.toUpperCase())}</td>
+                        <td><span class="tier-badge tier-${escapeHtml(result.tier)}">${escapeHtml(result.tier)}</span></td>
+                        <td>${escapeHtml(result.prompt)}</td>
                         <td>${result.metrics.resolution}, ${result.metrics.steps} steps</td>
                         <td>${result.metrics.time}ms</td>
                         <td>${result.metrics.cost} credits</td>
@@ -207,7 +217,7 @@ export class QualityReportGenerator {
         <div class="recommendations">
             <h3>📋 Recommendations</h3>
             <ul>
-                ${data.summary.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                ${data.summary.recommendations.map(rec => `<li>${escapeHtml(rec)}</li>`).join('')}
             </ul>
         </div>
         ` : ''}
@@ -229,17 +239,22 @@ export class QualityReportGenerator {
   }
 
   static async saveHTMLReport(data: QualityReportData, filename?: string): Promise<string> {
-    const reportsDir = path.join(process.cwd(), 'test-reports');
-    await fs.mkdir(reportsDir, { recursive: true });
-    
-    const reportFilename = filename || `quality-report-${Date.now()}.html`;
-    const filepath = path.join(reportsDir, reportFilename);
-    
-    const html = await QualityReportGenerator.generateHTMLReport(data);
-    await fs.writeFile(filepath, html);
-    
-    console.log(`\n📄 HTML Report saved to: ${filepath}`);
-    return filepath;
+    try {
+      const reportsDir = path.join(process.cwd(), 'test-reports');
+      await fs.mkdir(reportsDir, { recursive: true });
+      
+      const reportFilename = filename || `quality-report-${Date.now()}.html`;
+      const filepath = path.join(reportsDir, reportFilename);
+      
+      const html = await QualityReportGenerator.generateHTMLReport(data);
+      await fs.writeFile(filepath, html);
+      
+      console.log(`\n📄 HTML Report saved to: ${filepath}`);
+      return filepath;
+    } catch (error) {
+      console.error('Failed to save HTML report:', error);
+      throw new Error(`Failed to save report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 

@@ -141,14 +141,16 @@ app.post('/api/generate/:type', async (req, res) => {
       });
       return;
     }
+
+    console.log(`Generating ${type} for ${tier} tier using ${config.provider}...`);
     
-    const balance = await creditService.getBalance(userId);
-    
-    if (balance < cost) {
+    // Atomic operation: Check and deduct credits BEFORE generation to prevent race conditions
+    const deducted = await creditService.checkAndDeductCredits(userId, cost);
+    if (!deducted) {
       res.status(402).json({
         error: 'Insufficient credits',
         required: cost,
-        balance: balance,
+        balance: await creditService.getBalance(userId),
         tier: tier,
         earnMore: {
           dailyLogin: 0.1,
@@ -159,20 +161,22 @@ app.post('/api/generate/:type', async (req, res) => {
       return;
     }
 
-    console.log(`Generating ${type} for ${tier} tier using ${config.provider}...`);
-    
     // Generate asset based on provider and tier
     let result;
     const startTime = Date.now();
 
-    if (config.provider === 'together') {
-      result = await generateFreeTier(type, prompt, tokenSymbol, config);
-    } else {
-      result = await generateWithReplicate(type, prompt, tokenSymbol, config);
+    try {
+      if (config.provider === 'together') {
+        result = await generateFreeTier(type, prompt, tokenSymbol, config);
+      } else {
+        result = await generateWithReplicate(type, prompt, tokenSymbol, config);
+      }
+    } catch (error) {
+      // Refund credits if generation fails
+      await creditService.refundCredits(userId, cost);
+      throw error;
     }
 
-    // Deduct credits
-    await creditService.checkAndDeductCredits(userId, cost);
     const newBalance = await creditService.getBalance(userId);
 
     const endTime = Date.now();

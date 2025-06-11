@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { EventEmitter } from 'events';
-import { MockRedis } from './MockRedis';
+import { prisma } from '../lib/prisma';
+import { getRedisInstance } from '../lib/redis';
 
 interface CreditTransaction {
   userId: string;
@@ -35,9 +35,6 @@ interface CreditCosts {
 }
 
 export class CreditService extends EventEmitter {
-  private redis: MockRedis;
-  private prisma: PrismaClient;
-  
   private readonly earningRules: CreditEarningRules = {
     dailyLogin: 0.1,
     shareOnTwitter: 0.5,
@@ -63,8 +60,7 @@ export class CreditService extends EventEmitter {
 
   constructor() {
     super();
-    this.redis = new MockRedis();
-    this.prisma = new PrismaClient();
+    // Use singleton instances to prevent connection pool exhaustion
   }
 
   async getBalance(userId: string): Promise<number> {
@@ -73,18 +69,19 @@ export class CreditService extends EventEmitter {
     }
 
     try {
+      const redis = getRedisInstance();
       const cacheKey = `credits:${userId}`;
-      let balance = await this.redis.get(cacheKey);
+      let balance = await redis.get(cacheKey);
       
       if (balance === null) {
         // Fetch from database if not in cache
-        const user = await this.prisma.user.findUnique({
+        const user = await prisma.user.findUnique({
           where: { id: userId },
           select: { credits: true }
         });
         
         balance = user?.credits?.toString() || '0';
-        await this.redis.setex(cacheKey, 300, balance); // Cache for 5 minutes
+        await redis.setex(cacheKey, 300, balance); // Cache for 5 minutes
       }
       
       const numericBalance = parseFloat(balance);
@@ -112,7 +109,8 @@ export class CreditService extends EventEmitter {
       }
 
       // Atomic deduction using Redis
-      const newBalance = await this.redis.incrbyfloat(`credits:${userId}`, -amount);
+      const redis = getRedisInstance();
+      const newBalance = await redis.incrbyfloat(`credits:${userId}`, -amount);
       
       // Update database asynchronously
       await this.updateDatabaseBalance(userId, newBalance);
@@ -156,7 +154,8 @@ export class CreditService extends EventEmitter {
         return 0;
       }
 
-      const newBalance = await this.redis.incrbyfloat(`credits:${userId}`, amount);
+      const redis = getRedisInstance();
+      const newBalance = await redis.incrbyfloat(`credits:${userId}`, amount);
       
       // Update database
       await this.updateDatabaseBalance(userId, newBalance);
@@ -184,7 +183,8 @@ export class CreditService extends EventEmitter {
   }
 
   async refundCredits(userId: string, amount: number): Promise<void> {
-    const newBalance = await this.redis.incrbyfloat(`credits:${userId}`, amount);
+    const redis = getRedisInstance();
+    const newBalance = await redis.incrbyfloat(`credits:${userId}`, amount);
     
     this.updateDatabaseBalance(userId, newBalance);
     
@@ -212,9 +212,10 @@ export class CreditService extends EventEmitter {
     const today = new Date().toISOString().split('T')[0];
     const key = `earning_limit:${userId}:${reason}:${today}`;
     
-    const count = await this.redis.incr(key);
+    const redis = getRedisInstance();
+    const count = await redis.incr(key);
     if (count === 1) {
-      await this.redis.expire(key, 86400); // 24 hours
+      await redis.expire(key, 86400); // 24 hours
     }
 
     return count > limit;
@@ -231,7 +232,7 @@ export class CreditService extends EventEmitter {
 
     try {
       // Use immediate update instead of setTimeout for data consistency
-      await this.prisma.user.update({
+      await prisma.user.update({
         where: { id: userId },
         data: { credits: balance }
       });
@@ -239,7 +240,8 @@ export class CreditService extends EventEmitter {
       console.error(`Failed to update database balance for user ${userId}:`, error);
       
       // Clear cache on database update failure to prevent inconsistency
-      await this.redis.del(`credits:${userId}`).catch(() => {
+      const redis = getRedisInstance();
+      await redis.del(`credits:${userId}`).catch(() => {
         console.error('Failed to clear cache after database update failure');
       });
       
@@ -254,7 +256,7 @@ export class CreditService extends EventEmitter {
       const balanceBefore = transaction.type === 'earn' ? currentBalance - transaction.amount : currentBalance + Math.abs(transaction.amount);
       const balanceAfter = currentBalance;
 
-      await this.prisma.creditTransaction.create({
+      await prisma.creditTransaction.create({
         data: {
           userId: transaction.userId,
           amount: transaction.amount,
@@ -268,10 +270,11 @@ export class CreditService extends EventEmitter {
       });
 
       // Keep recent transactions in Redis for quick access
+      const redis = getRedisInstance();
       const key = `transactions:${transaction.userId}`;
-      await this.redis.lpush(key, JSON.stringify(transaction));
-      await this.redis.ltrim(key, 0, 99); // Keep last 100 transactions
-      await this.redis.expire(key, 2592000); // 30 days
+      await redis.lpush(key, JSON.stringify(transaction));
+      await redis.ltrim(key, 0, 99); // Keep last 100 transactions
+      await redis.expire(key, 2592000); // 30 days
     } catch (error: any) {
       console.error(`Failed to record transaction for user ${transaction.userId}:`, error);
       throw new Error(`Transaction recording failed: ${error?.message || 'Unknown error'}`);
@@ -286,20 +289,39 @@ export class CreditService extends EventEmitter {
       { threshold: 500, name: 'credit_whale', reward: 50 },
     ];
 
+    const redis = getRedisInstance();
+    const achievementRewards: Array<{ name: string; reward: number }> = [];
+
     for (const achievement of achievements) {
       if (balance >= achievement.threshold) {
-        const achieved = await this.redis.sismember(`achievements:${userId}`, achievement.name);
+        const achieved = await redis.sismember(`achievements:${userId}`, achievement.name);
         
         if (!achieved) {
-          await this.redis.sadd(`achievements:${userId}`, achievement.name);
-          await this.earnCredits(userId, 'communityEngagement', { 
-            achievement: achievement.name,
-            reward: achievement.reward 
-          });
-          
+          await redis.sadd(`achievements:${userId}`, achievement.name);
+          achievementRewards.push({ name: achievement.name, reward: achievement.reward });
           this.emit('achievementUnlocked', { userId, achievement: achievement.name });
         }
       }
+    }
+
+    // Award all achievement credits in bulk to prevent recursive calls
+    if (achievementRewards.length > 0) {
+      const totalReward = achievementRewards.reduce((sum, a) => sum + a.reward, 0);
+      const newBalance = await redis.incrbyfloat(`credits:${userId}`, totalReward);
+      
+      await this.updateDatabaseBalance(userId, newBalance);
+      
+      // Record single transaction for all achievement rewards
+      await this.recordTransaction({
+        userId,
+        amount: totalReward,
+        type: 'earn',
+        reason: 'Achievement rewards',
+        metadata: { achievements: achievementRewards },
+        timestamp: new Date(),
+      });
+
+      this.emit('creditsEarned', { userId, amount: totalReward, reason: 'achievements', newBalance });
     }
   }
 
@@ -313,14 +335,15 @@ export class CreditService extends EventEmitter {
     }
 
     try {
-      const cached = await this.redis.lrange(`transactions:${userId}`, 0, limit - 1);
+      const redis = getRedisInstance();
+      const cached = await redis.lrange(`transactions:${userId}`, 0, limit - 1);
       
       if (cached.length > 0) {
         return cached.map((t: string) => JSON.parse(t) as CreditTransaction);
       }
 
       // Fallback to database
-      const transactions = await this.prisma.creditTransaction.findMany({
+      const transactions = await prisma.creditTransaction.findMany({
         where: { userId },
         orderBy: { timestamp: 'desc' },
         take: limit,
@@ -343,9 +366,10 @@ export class CreditService extends EventEmitter {
 
   async initializeNewUser(userId: string): Promise<void> {
     // Give 3 free credits to new users
-    await this.redis.set(`credits:${userId}`, '3');
+    const redis = getRedisInstance();
+    await redis.set(`credits:${userId}`, '3');
     
-    await this.prisma.user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: { credits: 3 }
     });
