@@ -207,8 +207,9 @@ function generateSummary(results: any[]) {
   };
   
   validResults.forEach(r => {
-    if (tierScores[r.tier]) {
-      tierScores[r.tier].push(r.score);
+    const tierArray = tierScores[r.tier as keyof typeof tierScores];
+    if (tierArray) {
+      tierArray.push(r.score);
     }
   });
   

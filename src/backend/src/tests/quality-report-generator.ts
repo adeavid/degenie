@@ -204,7 +204,7 @@ export class QualityReportGenerator {
                         <td>${escapeHtml(result.type.toUpperCase())}</td>
                         <td><span class="tier-badge tier-${escapeHtml(result.tier)}">${escapeHtml(result.tier)}</span></td>
                         <td>${escapeHtml(result.prompt)}</td>
-                        <td>${result.metrics.resolution}, ${result.metrics.steps} steps</td>
+                        <td>${escapeHtml(result.metrics.resolution)}, ${result.metrics.steps} steps</td>
                         <td>${result.metrics.time}ms</td>
                         <td>${result.metrics.cost} credits</td>
                         <td><span class="score ${getScoreClass(result.score)}">${result.score}/100</span></td>

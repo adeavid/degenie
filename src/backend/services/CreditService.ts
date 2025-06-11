@@ -75,10 +75,18 @@ export class CreditService extends EventEmitter {
       
       if (balance === null) {
         // Fetch from database if not in cache
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
+        let user = await prisma.user.findUnique({
+          where: { walletAddress: userId },
           select: { credits: true }
         });
+        
+        // Create user if doesn't exist
+        if (!user) {
+          user = await prisma.user.create({
+            data: { walletAddress: userId, credits: 3 }, // 3 free credits for new users
+            select: { credits: true }
+          });
+        }
         
         balance = user?.credits?.toString() || '0';
         await redis.setex(cacheKey, 300, balance); // Cache for 5 minutes
@@ -102,17 +110,22 @@ export class CreditService extends EventEmitter {
     }
 
     try {
-      const balance = await this.getBalance(userId);
-      
-      if (balance < amount) {
-        return false;
-      }
-
-      // Atomic deduction using Redis
+      // Atomic check and deduct operation using Redis (simulates Lua script)
       const redis = getRedisInstance();
-      const newBalance = await redis.incrbyfloat(`credits:${userId}`, -amount);
+      const cacheKey = `credits:${userId}`;
       
-      // Update database asynchronously
+      // Ensure cache is populated with current balance
+      const currentBalance = await this.getBalance(userId);
+      await redis.set(cacheKey, currentBalance.toString());
+      
+      // Atomic check and deduct
+      const newBalance = await redis.atomicCheckAndDeduct(cacheKey, amount);
+      
+      if (newBalance === -1) {
+        return false; // Insufficient funds
+      }
+      
+      // Update database
       await this.updateDatabaseBalance(userId, newBalance);
       
       // Record transaction
@@ -186,7 +199,7 @@ export class CreditService extends EventEmitter {
     const redis = getRedisInstance();
     const newBalance = await redis.incrbyfloat(`credits:${userId}`, amount);
     
-    this.updateDatabaseBalance(userId, newBalance);
+    await this.updateDatabaseBalance(userId, newBalance);
     
     await this.recordTransaction({
       userId,
@@ -232,9 +245,10 @@ export class CreditService extends EventEmitter {
 
     try {
       // Use immediate update instead of setTimeout for data consistency
-      await prisma.user.update({
-        where: { id: userId },
-        data: { credits: balance }
+      await prisma.user.upsert({
+        where: { walletAddress: userId },
+        update: { credits: balance },
+        create: { walletAddress: userId, credits: balance }
       });
     } catch (error: any) {
       console.error(`Failed to update database balance for user ${userId}:`, error);
@@ -253,12 +267,27 @@ export class CreditService extends EventEmitter {
     try {
       // Get current balance to calculate balanceBefore and balanceAfter
       const currentBalance = await this.getBalance(transaction.userId);
-      const balanceBefore = transaction.type === 'earn' ? currentBalance - transaction.amount : currentBalance + Math.abs(transaction.amount);
+      const balanceBefore = 
+        transaction.type === 'earn'
+          ? currentBalance - transaction.amount            // earn: was less before adding
+          : transaction.type === 'refund'
+              ? currentBalance - transaction.amount        // refund: was less before refunding
+              : currentBalance + Math.abs(transaction.amount); // spend: was more before spending
       const balanceAfter = currentBalance;
+
+      // Get the actual user ID from database
+      const user = await prisma.user.findUnique({
+        where: { walletAddress: transaction.userId },
+        select: { id: true }
+      });
+
+      if (!user) {
+        throw new Error(`User not found: ${transaction.userId}`);
+      }
 
       await prisma.creditTransaction.create({
         data: {
-          userId: transaction.userId,
+          userId: user.id,
           amount: transaction.amount,
           type: transaction.type,
           reason: transaction.reason,
@@ -342,9 +371,18 @@ export class CreditService extends EventEmitter {
         return cached.map((t: string) => JSON.parse(t) as CreditTransaction);
       }
 
-      // Fallback to database
+      // Fallback to database - get actual user ID first
+      const user = await prisma.user.findUnique({
+        where: { walletAddress: userId },
+        select: { id: true }
+      });
+
+      if (!user) {
+        return []; // No user found, return empty array
+      }
+
       const transactions = await prisma.creditTransaction.findMany({
-        where: { userId },
+        where: { userId: user.id },
         orderBy: { timestamp: 'desc' },
         take: limit,
       });
@@ -369,9 +407,10 @@ export class CreditService extends EventEmitter {
     const redis = getRedisInstance();
     await redis.set(`credits:${userId}`, '3');
     
-    await prisma.user.update({
-      where: { id: userId },
-      data: { credits: 3 }
+    await prisma.user.upsert({
+      where: { walletAddress: userId },
+      update: { credits: 3 },
+      create: { walletAddress: userId, credits: 3 }
     });
 
     await this.recordTransaction({

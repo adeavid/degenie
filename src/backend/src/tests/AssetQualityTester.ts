@@ -203,7 +203,7 @@ export class AssetQualityTester {
     const cryptoRelevance = hasCryptoContext ? 85 : 60;
 
     // Uniqueness: Higher tiers should produce more unique results
-    const uniqueness = tier === 'viral' ? 90 : tier === 'starter' ? 75 : 60;
+    const uniqueness = _tier === 'viral' ? 90 : _tier === 'starter' ? 75 : 60;
 
     // Calculate overall score
     const overall = Math.round(

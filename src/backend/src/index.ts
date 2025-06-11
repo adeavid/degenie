@@ -10,12 +10,12 @@ import { MockRedis } from './services/MockRedis';
 dotenv.config();
 
 // Import routes
-import aiRoutes from './routes/ai.routes';
+import aiRoutes from '../routes/ai.routes';
 // import authRoutes from './routes/auth.routes';
 // import tokenRoutes from './routes/token.routes';
 
 // Import services for initialization
-import { CreditService } from './services/CreditService';
+import { CreditService } from '../services/CreditService';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -65,7 +65,7 @@ app.use('/api/ai', aiRoutes);
 // app.use('/api/tokens', tokenRoutes);
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Error:', err);
   
   if (err.name === 'ValidationError') {
@@ -85,7 +85,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
   res.status(500).json({
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    message: process.env['NODE_ENV'] === 'development' ? err.message : undefined,
   });
 });
 
@@ -104,15 +104,15 @@ async function initializeServices() {
   // Initialize credit service event listeners
   const creditService = new CreditService();
   
-  creditService.on('creditsEarned', ({ userId, amount, reason, newBalance }) => {
+  creditService.on('creditsEarned', ({ userId, amount, reason, newBalance }: { userId: string; amount: number; reason: string; newBalance: number }) => {
     console.log(`Credits earned: User ${userId} earned ${amount} credits for ${reason}. New balance: ${newBalance}`);
   });
   
-  creditService.on('creditsSpent', ({ userId, amount, newBalance }) => {
+  creditService.on('creditsSpent', ({ userId, amount, newBalance }: { userId: string; amount: number; newBalance: number }) => {
     console.log(`Credits spent: User ${userId} spent ${amount} credits. New balance: ${newBalance}`);
   });
   
-  creditService.on('achievementUnlocked', ({ userId, achievement }) => {
+  creditService.on('achievementUnlocked', ({ userId, achievement }: { userId: string; achievement: string }) => {
     console.log(`Achievement unlocked: User ${userId} unlocked ${achievement}`);
   });
   
@@ -120,7 +120,7 @@ async function initializeServices() {
 }
 
 // Start server
-const PORT = process.env.PORT || 4000;
+const PORT = process.env['PORT'] || 4000;
 
 async function start() {
   try {
@@ -138,7 +138,7 @@ async function start() {
     // Start Express server
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📍 Environment: ${process.env['NODE_ENV'] || 'development'}`);
       console.log(`🎨 AI Providers: Together.ai + Replicate`);
       console.log(`💳 Credit System: Active`);
     });

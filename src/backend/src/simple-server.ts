@@ -12,9 +12,9 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize AI clients
-const together = new Together({
-  auth: process.env['TOGETHER_API_KEY']!
-});
+// const together = new Together({
+//   auth: process.env['TOGETHER_API_KEY']!
+// });
 
 const replicate = new Replicate({
   auth: process.env['REPLICATE_API_TOKEN']!

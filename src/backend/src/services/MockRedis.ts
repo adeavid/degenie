@@ -54,6 +54,12 @@ export class MockRedis {
     return 'PONG';
   }
 
+  async quit(): Promise<void> {
+    // MockRedis doesn't need explicit cleanup
+    this.store.clear();
+    this.expiry.clear();
+  }
+
   async zadd(key: string, score: number, member: string): Promise<void> {
     const currentValue = await this.get(key);
     const sortedSet = JSON.parse(currentValue || '[]');
@@ -134,6 +140,20 @@ export class MockRedis {
   async del(key: string): Promise<void> {
     this.store.delete(key);
     this.expiry.delete(key);
+  }
+
+  // Atomic check and deduct operation (simulates Redis Lua script)
+  async atomicCheckAndDeduct(key: string, amount: number): Promise<number> {
+    this.checkExpiry(key);
+    const current = parseFloat(this.store.get(key) || '0');
+    
+    if (current >= amount) {
+      const newBalance = current - amount;
+      this.store.set(key, newBalance.toString());
+      return newBalance;
+    } else {
+      return -1; // Insufficient funds
+    }
   }
 
   private checkExpiry(key: string): void {

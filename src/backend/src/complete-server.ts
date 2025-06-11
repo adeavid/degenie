@@ -338,6 +338,17 @@ app.post('/api/credits/:userId/earn', async (req, res) => {
     const { userId } = req.params;
     const { action, metadata } = req.body;
     
+    // Validate action before calling earnCredits
+    const validActions = Object.keys(creditService.getEarningRules());
+    if (!action || !validActions.includes(action)) {
+      res.status(400).json({ 
+        error: 'Invalid earning action',
+        validActions,
+        code: 'INVALID_ACTION'
+      });
+      return;
+    }
+    
     const earned = await creditService.earnCredits(userId, action, metadata);
     const newBalance = await creditService.getBalance(userId);
     
