@@ -12,7 +12,16 @@ use solana_program::program_option::COption;
 declare_id!("DeGenieTokenCreator11111111111111111111111");
 
 // DeGenie Platform Treasury - Replace with your actual wallet
-pub const DEGENIE_PLATFORM_TREASURY: &str = "DGN1E111111111111111111111111111111111111111"; // TODO: Replace with real wallet
+pub const DEGENIE_PLATFORM_TREASURY: &str = "3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF";
+
+// Fixed graduation threshold - 500 SOL for all tokens
+// Why fixed SOL instead of USD?
+// 1. No oracle dependency = simpler, cheaper, more reliable
+// 2. Traders think in SOL, not USD when trading on Solana
+// 3. Predictable for everyone: "500 SOL = graduation"
+// 4. At SOL=$145, this is ~$72,500 (similar to pump.fun's $69k)
+pub const GRADUATION_THRESHOLD_SOL: u64 = 500;
+pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 
 #[program]
 pub mod degenie_token_creator {
@@ -190,11 +199,10 @@ pub mod degenie_token_creator {
         max_supply: u64,
         curve_type: CurveType,
         growth_rate: u64,
-        graduation_threshold: u64,
+        // graduation_threshold removed - now using fixed 500 SOL
     ) -> Result<()> {
         require!(initial_price > 0, TokenCreatorError::InvalidAmount);
         require!(max_supply > 0, TokenCreatorError::InvalidAmount);
-        require!(graduation_threshold > 0, TokenCreatorError::InvalidAmount);
         require!(price_increment > 0, TokenCreatorError::InvalidAmount);
         
         // Validate growth_rate based on curve type
@@ -225,7 +233,7 @@ pub mod degenie_token_creator {
         bonding_curve.growth_rate = growth_rate;
         bonding_curve.treasury_balance = 0;
         bonding_curve.total_volume = 0;
-        bonding_curve.graduation_threshold = graduation_threshold;
+        bonding_curve.graduation_threshold = GRADUATION_THRESHOLD_SOL * LAMPORTS_PER_SOL; // Fixed 500 SOL
         bonding_curve.is_graduated = false;
         bonding_curve.creation_fee = 20_000_000; // 0.02 SOL
         bonding_curve.transaction_fee_bps = 100; // 1%
@@ -955,7 +963,7 @@ pub struct BondingCurve {
     pub growth_rate: u64, // Basis points (10000 = 100%)
     pub treasury_balance: u64,
     pub total_volume: u64,
-    pub graduation_threshold: u64, // Market cap in lamports for DEX migration
+    pub graduation_threshold: u64, // Fixed at 500 SOL for all tokens
     pub is_graduated: bool,
     pub creation_fee: u64,
     pub transaction_fee_bps: u16, // Basis points (100 = 1%)
