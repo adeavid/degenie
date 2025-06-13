@@ -191,7 +191,21 @@ pub mod degenie_token_creator {
     ) -> Result<()> {
         require!(initial_price > 0, TokenCreatorError::InvalidAmount);
         require!(max_supply > 0, TokenCreatorError::InvalidAmount);
-        require!(growth_rate > 0 && growth_rate <= 10000, TokenCreatorError::InvalidAmount);
+        require!(graduation_threshold > 0, TokenCreatorError::InvalidAmount);
+        require!(price_increment > 0, TokenCreatorError::InvalidAmount);
+        
+        // Validate growth_rate based on curve type
+        match curve_type {
+            CurveType::Linear => {
+                require!(growth_rate == 0, TokenCreatorError::InvalidAmount);
+            },
+            CurveType::Exponential => {
+                require!(growth_rate > 0 && growth_rate <= 10000, TokenCreatorError::InvalidAmount);
+            },
+            CurveType::Logarithmic => {
+                // Future implementation - allow any value for now
+            }
+        }
         
         let bonding_curve = &mut ctx.accounts.bonding_curve;
         let clock = Clock::get()?;
@@ -284,7 +298,8 @@ pub mod degenie_token_creator {
         
         // Calculate transaction fee
         let transaction_fee = sol_amount
-            .checked_mul(bonding_curve.transaction_fee_bps as u64)?
+            .checked_mul(bonding_curve.transaction_fee_bps as u64)
+            .ok_or(TokenCreatorError::InvalidAmount)?
             .checked_div(10000)
             .ok_or(TokenCreatorError::InvalidAmount)?;
         
@@ -297,6 +312,9 @@ pub mod degenie_token_creator {
             sol_after_fee,
             bonding_curve,
         )?;
+
+        // Reject zero-token purchases to prevent silent SOL burns
+        require!(tokens_to_mint > 0, TokenCreatorError::InvalidAmount);
 
         // Check max supply
         require!(
@@ -359,7 +377,14 @@ pub mod degenie_token_creator {
         // Update price based on curve type
         match bonding_curve.curve_type {
             CurveType::Linear => {
-                bonding_curve.current_price += bonding_curve.price_increment * tokens_to_mint / 1000;
+                let price_increase = bonding_curve.price_increment
+                    .checked_mul(tokens_to_mint)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .checked_add(price_increase)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
             },
             CurveType::Exponential => {
                 bonding_curve.current_price = calculate_price_exponential(
@@ -369,8 +394,15 @@ pub mod degenie_token_creator {
                 )?;
             },
             CurveType::Logarithmic => {
-                // Future implementation
-                bonding_curve.current_price += bonding_curve.price_increment * tokens_to_mint / 1000;
+                // Future implementation - use same safe arithmetic as Linear for now
+                let price_increase = bonding_curve.price_increment
+                    .checked_mul(tokens_to_mint)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .checked_add(price_increase)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
             }
         }
         
@@ -423,7 +455,8 @@ pub mod degenie_token_creator {
         )?;
         
         let transaction_fee = sol_to_return_gross
-            .checked_mul(bonding_curve.transaction_fee_bps as u64)?
+            .checked_mul(bonding_curve.transaction_fee_bps as u64)
+            .ok_or(TokenCreatorError::InvalidAmount)?
             .checked_div(10000)
             .ok_or(TokenCreatorError::InvalidAmount)?;
         
@@ -1030,7 +1063,11 @@ pub fn calculate_price_impact(
     }
     
     let price_increase = new_price - current_price;
-    let impact_bps = (price_increase * 10000) / current_price;
+    let impact_bps = price_increase
+        .checked_mul(10000)
+        .ok_or(TokenCreatorError::InvalidAmount)?
+        .checked_div(current_price)
+        .ok_or(TokenCreatorError::InvalidAmount)?;
     
     // Cap at u16::MAX to prevent overflow
     Ok(std::cmp::min(impact_bps, u16::MAX as u64) as u16)
