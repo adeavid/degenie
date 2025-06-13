@@ -376,7 +376,8 @@ pub mod degenie_token_creator {
         
         // Check for graduation
         let market_cap = bonding_curve.total_supply
-            .checked_mul(bonding_curve.current_price)?;
+            .checked_mul(bonding_curve.current_price)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
         
         if market_cap >= bonding_curve.graduation_threshold {
             bonding_curve.is_graduated = true;
@@ -534,7 +535,8 @@ pub mod degenie_token_creator {
         
         // Calculate liquidity to migrate (85% of treasury)
         let liquidity_amount = bonding_curve.treasury_balance
-            .checked_mul(85)?
+            .checked_mul(85)
+            .ok_or(TokenCreatorError::InvalidAmount)?
             .checked_div(100)
             .ok_or(TokenCreatorError::InvalidAmount)?;
         
@@ -915,10 +917,14 @@ pub fn calculate_price_exponential(
     let mut price = initial_price;
     let growth_multiplier = 10000 + growth_rate; // e.g., 10100 for 1% growth
     
-    // Apply exponential growth
-    for _ in 0..supply_scaled {
+    // Apply exponential growth with compute unit protection
+    // Limit iterations to prevent exceeding Solana's 200k CU limit
+    let safe_iterations = std::cmp::min(supply_scaled, 50);
+    
+    for _ in 0..safe_iterations {
         price = price
-            .checked_mul(growth_multiplier)?
+            .checked_mul(growth_multiplier)
+            .ok_or(TokenCreatorError::InvalidAmount)?
             .checked_div(10000)
             .ok_or(TokenCreatorError::InvalidAmount)?;
     }
