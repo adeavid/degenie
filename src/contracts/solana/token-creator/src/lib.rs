@@ -525,7 +525,8 @@ pub mod degenie_token_creator {
         
         // Calculate current market cap
         let market_cap = bonding_curve.total_supply
-            .checked_mul(bonding_curve.current_price)?;
+            .checked_mul(bonding_curve.current_price)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
         
         // Check if graduation threshold reached
         require!(

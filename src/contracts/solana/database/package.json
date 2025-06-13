@@ -1,0 +1,60 @@
+{
+  "name": "degenie-database",
+  "version": "1.0.0",
+  "description": "PostgreSQL database configuration and services for DeGenie token graduation tracking",
+  "main": "config.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "init-db": "node scripts/init-database.js",
+    "migrate": "node scripts/run-migrations.js",
+    "seed": "node scripts/seed-data.js",
+    "test-db": "node scripts/test-connection.js",
+    "health": "node scripts/health-check.js",
+    "backup": "node scripts/backup-database.js",
+    "restore": "node scripts/restore-database.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1",
+    "uuid": "^9.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "joi": "^17.11.0",
+    "rate-limiter-flexible": "^3.0.8",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "@types/node": "^20.8.10"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "degenie",
+    "solana",
+    "token",
+    "graduation",
+    "database",
+    "postgresql",
+    "bonding-curve",
+    "analytics"
+  ],
+  "author": "DeGenie Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/degenie/platform"
+  },
+  "bugs": {
+    "url": "https://github.com/degenie/platform/issues"
+  },
+  "homepage": "https://degenie.ai"
+}
