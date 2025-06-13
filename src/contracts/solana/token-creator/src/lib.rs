@@ -11,6 +11,9 @@ use solana_program::program_option::COption;
 
 declare_id!("DeGenieTokenCreator11111111111111111111111");
 
+// DeGenie Platform Treasury - Replace with your actual wallet
+pub const DEGENIE_PLATFORM_TREASURY: &str = "DGN1E111111111111111111111111111111111111111"; // TODO: Replace with real wallet
+
 #[program]
 pub mod degenie_token_creator {
     use super::*;
@@ -335,7 +338,14 @@ pub mod degenie_token_creator {
         // Split fees between creator and platform
         if transaction_fee > 0 {
             let creator_fee = transaction_fee
-                .checked_mul(bonding_curve.creator_fee_bps as u64)?
+                .checked_mul(bonding_curve.creator_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(bonding_curve.transaction_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            
+            let platform_fee = transaction_fee
+                .checked_mul(bonding_curve.platform_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?
                 .checked_div(bonding_curve.transaction_fee_bps as u64)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
@@ -348,6 +358,29 @@ pub mod degenie_token_creator {
                 },
             );
             anchor_lang::system_program::transfer(creator_cpi, creator_fee)?;
+            
+            // Validate platform treasury address
+            let expected_platform_treasury = DEGENIE_PLATFORM_TREASURY.parse::<Pubkey>()
+                .map_err(|_| TokenCreatorError::InvalidAmount)?;
+            require!(
+                ctx.accounts.platform_treasury.key() == expected_platform_treasury,
+                TokenCreatorError::InvalidAmount
+            );
+            
+            // Transfer platform fee to DeGenie treasury
+            let platform_cpi = CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.treasury.to_account_info(),
+                    to: ctx.accounts.platform_treasury.to_account_info(),
+                },
+            );
+            anchor_lang::system_program::transfer(platform_cpi, platform_fee)?;
+            
+            // Update treasury balance correctly (subtract fees paid out)
+            bonding_curve.treasury_balance = bonding_curve.treasury_balance
+                .saturating_sub(creator_fee)
+                .saturating_sub(platform_fee);
         }
 
         // Mint tokens to buyer
@@ -496,7 +529,14 @@ pub mod degenie_token_creator {
         // Update fees
         if transaction_fee > 0 {
             let creator_fee = transaction_fee
-                .checked_mul(bonding_curve.creator_fee_bps as u64)?
+                .checked_mul(bonding_curve.creator_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(bonding_curve.transaction_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            
+            let platform_fee = transaction_fee
+                .checked_mul(bonding_curve.platform_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?
                 .checked_div(bonding_curve.transaction_fee_bps as u64)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
@@ -510,12 +550,32 @@ pub mod degenie_token_creator {
                 signer,
             );
             anchor_lang::system_program::transfer(creator_cpi, creator_fee)?;
+            
+            // Validate and transfer platform fee
+            let expected_platform_treasury = DEGENIE_PLATFORM_TREASURY.parse::<Pubkey>()
+                .map_err(|_| TokenCreatorError::InvalidAmount)?;
+            require!(
+                ctx.accounts.platform_treasury.key() == expected_platform_treasury,
+                TokenCreatorError::InvalidAmount
+            );
+            
+            let platform_cpi = CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.treasury.to_account_info(),
+                    to: ctx.accounts.platform_treasury.to_account_info(),
+                },
+                signer,
+            );
+            anchor_lang::system_program::transfer(platform_cpi, platform_fee)?;
+            
+            // Treasury balance will be updated below with the net payout amount
         }
 
         // Update bonding curve state
         bonding_curve.total_supply -= token_amount;
         bonding_curve.treasury_balance = bonding_curve.treasury_balance
-            .saturating_sub(sol_to_return_net);
+            .saturating_sub(sol_to_return_gross); // Subtract gross amount since all fees are paid from treasury
         bonding_curve.total_volume += sol_to_return_gross;
         
         // Update price based on curve type
@@ -780,6 +840,10 @@ pub struct BuyTokens<'info> {
     #[account(mut)]
     pub creator: UncheckedAccount<'info>,
     
+    /// CHECK: Platform treasury for receiving platform fees
+    #[account(mut)]
+    pub platform_treasury: UncheckedAccount<'info>,
+    
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -809,6 +873,10 @@ pub struct SellTokens<'info> {
     /// CHECK: Creator account for receiving fees
     #[account(mut)]
     pub creator: UncheckedAccount<'info>,
+    
+    /// CHECK: Platform treasury for receiving platform fees
+    #[account(mut)]
+    pub platform_treasury: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
