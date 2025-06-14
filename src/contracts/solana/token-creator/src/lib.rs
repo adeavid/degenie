@@ -373,10 +373,9 @@ pub mod degenie_token_creator {
                 .checked_div(bonding_curve.transaction_fee_bps as u64)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
+            // Calculate platform fee as remainder to ensure exact sum
             let platform_fee = transaction_fee
-                .checked_mul(bonding_curve.platform_fee_bps as u64)
-                .ok_or(TokenCreatorError::InvalidAmount)?
-                .checked_div(bonding_curve.transaction_fee_bps as u64)
+                .checked_sub(creator_fee)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
             // Transfer creator fee with treasury as signer
@@ -572,10 +571,9 @@ pub mod degenie_token_creator {
                 .checked_div(bonding_curve.transaction_fee_bps as u64)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
+            // Calculate platform fee as remainder to ensure exact sum
             let platform_fee = transaction_fee
-                .checked_mul(bonding_curve.platform_fee_bps as u64)
-                .ok_or(TokenCreatorError::InvalidAmount)?
-                .checked_div(bonding_curve.transaction_fee_bps as u64)
+                .checked_sub(creator_fee)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
             // Transfer creator fee with treasury as signer
