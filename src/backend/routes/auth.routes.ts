@@ -1,0 +1,343 @@
+import { Router, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma';
+
+const router = Router();
+
+// Validation schemas
+const walletLoginSchema = z.object({
+  walletAddress: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
+  signature: z.string().optional(), // For future signature verification
+  referralCode: z.string().optional(),
+});
+
+const emailLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+const registerSchema = z.object({
+  walletAddress: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
+  email: z.string().email().optional(),
+  username: z.string().min(3).max(30).optional(),
+  referralCode: z.string().optional(),
+});
+
+// Generate JWT token
+function generateToken(userId: string): string {
+  return jwt.sign(
+    { userId },
+    process.env['JWT_SECRET']!,
+    { expiresIn: '30d' }
+  );
+}
+
+// Wallet-based login/register (most common for Web3)
+router.post('/wallet', async (req: Request, res: Response) => {
+  try {
+    const { walletAddress, referralCode } = walletLoginSchema.parse(req.body);
+
+    // Find or create user
+    let user = await prisma.user.findUnique({
+      where: { walletAddress },
+    });
+
+    if (!user) {
+      // Create new user
+      const userData: any = {
+        walletAddress,
+        tier: 'free',
+        credits: 3.0, // Starting credits
+      };
+
+      // Handle referral
+      if (referralCode) {
+        const referrer = await prisma.user.findUnique({
+          where: { referralCode },
+        });
+        
+        if (referrer) {
+          userData.referredBy = referrer.id;
+          
+          // Award referral credits atomically
+          await prisma.$transaction([
+            prisma.creditTransaction.create({
+              data: {
+                userId: referrer.id,
+                amount: 1.0,
+                type: 'earn',
+                reason: 'referral_signup',
+                balanceBefore: referrer.credits,
+                balanceAfter: referrer.credits + 1.0,
+              },
+            }),
+            prisma.user.update({
+              where: { id: referrer.id },
+              data: { credits: { increment: 1.0 } },
+            }),
+          ]);
+        }
+      }
+
+      user = await prisma.user.create({
+        data: userData,
+      });
+
+      // Award welcome bonus
+      await prisma.creditTransaction.create({
+        data: {
+          userId: user.id,
+          amount: 3.0,
+          type: 'earn',
+          reason: 'welcome_bonus',
+          balanceBefore: 0,
+          balanceAfter: 3.0,
+        },
+      });
+    }
+
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const token = generateToken(user.id);
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        walletAddress: user.walletAddress,
+        email: user.email,
+        username: user.username,
+        credits: user.credits,
+        tier: user.tier,
+        referralCode: user.referralCode,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Invalid input', details: error.errors });
+      return;
+    }
+    
+    console.error('Wallet auth error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+// Register with additional details
+router.post('/register', async (req: Request, res: Response) => {
+  try {
+    const { walletAddress, email, username, referralCode } = registerSchema.parse(req.body);
+
+    // Check if wallet already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { walletAddress },
+    });
+
+    if (existingUser) {
+      res.status(400).json({ error: 'Wallet already registered' });
+      return;
+    }
+
+    // Check unique constraints
+    if (email) {
+      const emailExists = await prisma.user.findUnique({
+        where: { email },
+      });
+      if (emailExists) {
+        res.status(400).json({ error: 'Email already in use' });
+        return;
+      }
+    }
+
+    if (username) {
+      const usernameExists = await prisma.user.findUnique({
+        where: { username },
+      });
+      if (usernameExists) {
+        res.status(400).json({ error: 'Username already taken' });
+        return;
+      }
+    }
+
+    const userData: any = {
+      walletAddress,
+      email,
+      username,
+      tier: 'free',
+      credits: 3.0,
+    };
+
+    // Handle referral
+    if (referralCode) {
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode },
+      });
+      
+      if (referrer) {
+        userData.referredBy = referrer.id;
+        
+        // Award referral credits atomically
+        await prisma.$transaction([
+          prisma.creditTransaction.create({
+            data: {
+              userId: referrer.id,
+              amount: 1.0,
+              type: 'earn',
+              reason: 'referral_signup',
+              balanceBefore: referrer.credits,
+              balanceAfter: referrer.credits + 1.0,
+            },
+          }),
+          prisma.user.update({
+            where: { id: referrer.id },
+            data: { credits: { increment: 1.0 } },
+          }),
+        ]);
+      }
+    }
+
+    const user = await prisma.user.create({
+      data: userData,
+    });
+
+    // Award welcome bonus
+    await prisma.creditTransaction.create({
+      data: {
+        userId: user.id,
+        amount: 3.0,
+        type: 'earn',
+        reason: 'welcome_bonus',
+        balanceBefore: 0,
+        balanceAfter: 3.0,
+      },
+    });
+
+    const token = generateToken(user.id);
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        walletAddress: user.walletAddress,
+        email: user.email,
+        username: user.username,
+        credits: user.credits,
+        tier: user.tier,
+        referralCode: user.referralCode,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Invalid input', details: error.errors });
+      return;
+    }
+    
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// Get current user info (requires auth)
+router.get('/me', async (req: Request & { user?: any }, res: Response) => {
+  // This would be used with authMiddleware
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'No token provided' });
+    return;
+  }
+
+  try {
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env['JWT_SECRET']!) as { userId: string };
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        walletAddress: true,
+        email: true,
+        username: true,
+        credits: true,
+        tier: true,
+        referralCode: true,
+        createdAt: true,
+        subscription: {
+          select: {
+            tier: true,
+            status: true,
+            expiresAt: true,
+          },
+        },
+        _count: {
+          select: {
+            tokens: true,
+            generations: true,
+            referrals: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json({
+      user: {
+        ...user,
+        stats: {
+          tokensCreated: user._count.tokens,
+          generationsCount: user._count.generations,
+          referralsCount: user._count.referrals,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// Refresh token endpoint
+router.post('/refresh', async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'No token provided' });
+    return;
+  }
+
+  try {
+    const oldToken = authHeader.substring(7);
+    const decoded = jwt.verify(oldToken, process.env['JWT_SECRET']!, {
+      ignoreExpiration: true,
+    }) as { userId: string; exp?: number };
+
+    // Check if token is not too old (within 7 days of expiry)
+    if (decoded.exp && decoded.exp * 1000 < Date.now() - 7 * 24 * 60 * 60 * 1000) {
+      res.status(401).json({ error: 'Token too old for refresh' });
+      return;
+    }
+
+    // Verify user still exists
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const newToken = generateToken(user.id);
+    res.json({ token: newToken });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+export default router;

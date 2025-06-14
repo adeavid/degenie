@@ -11,7 +11,7 @@ dotenv.config();
 
 // Import routes
 import aiRoutes from '../routes/ai.routes';
-// import authRoutes from './routes/auth.routes';
+import authRoutes from '../routes/auth.routes';
 // import tokenRoutes from './routes/token.routes';
 
 // Import services for initialization
@@ -61,7 +61,7 @@ app.get('/health', async (req, res) => {
 
 // API Routes
 app.use('/api/ai', aiRoutes);
-// app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 // app.use('/api/tokens', tokenRoutes);
 
 // Error handling middleware

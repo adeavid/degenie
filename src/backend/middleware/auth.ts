@@ -19,7 +19,11 @@ const globalForPrisma = globalThis as unknown as {
 
 const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+if (!process.env['JWT_SECRET']) {
+  throw new Error('JWT_SECRET env var must be set');
+}
+
+if (process.env['NODE_ENV'] !== 'production') globalForPrisma.prisma = prisma;
 
 declare global {
   namespace Express {
@@ -46,7 +50,7 @@ export async function authMiddleware(
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
+    const decoded = jwt.verify(token, process.env['JWT_SECRET']!) as JWTPayload;
 
     // Verify user exists and get current tier
     const user = await prisma.user.findUnique({

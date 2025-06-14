@@ -29,14 +29,13 @@ export class AIGenerationController {
         return;
       }
 
-      const { prompt, assetType, tokenSymbol, tokenName, style } = req.body as GenerationRequest;
+      const { prompt, assetType, tokenSymbol } = req.body as GenerationRequest;
 
       // Get user tier
       const userTier = await getUserTier(userId);
 
       // Check credits before generation
       const creditBalance = await this.creditService.getBalance(userId);
-      const costs = this.creditService.getCreditCosts();
       const requiredCredits = this.getRequiredCredits(assetType, userTier);
 
       if (creditBalance < requiredCredits) {
@@ -77,7 +76,7 @@ export class AIGenerationController {
       } else {
         res.status(500).json({ 
           error: 'Failed to generate asset',
-          message: process.env.NODE_ENV === 'development' ? error.message : undefined
+          message: process.env['NODE_ENV'] === 'development' ? error.message : undefined
         });
       }
     }
@@ -170,7 +169,7 @@ export class AIGenerationController {
         return;
       }
 
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+      const limit = Math.min(parseInt(req.query['limit'] as string) || 10, 50);
       const history = await this.assetService.getGenerationHistory(userId, limit);
 
       res.status(200).json({

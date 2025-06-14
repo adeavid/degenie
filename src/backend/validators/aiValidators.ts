@@ -1,8 +1,6 @@
 import { z } from 'zod';
-import { AssetType } from '../types/ai';
 
 const assetTypes = ['logo', 'meme', 'gif'] as const;
-type AssetTypeTuple = typeof assetTypes;
 
 export const generationRequestSchema = z.object({
   prompt: z.string().min(3).max(500),
