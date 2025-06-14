@@ -74,7 +74,10 @@ async function testAuth() {
       });
       console.log('❌ Duplicate registration allowed (should have failed)');
     } catch (error) {
-      console.log('✅ Duplicate registration blocked:', error.response.data.error);
+      console.log(
+        '✅ Duplicate registration blocked:',
+        error.response?.data?.error ?? error.message
+      );
     }
 
     // Test 6: Test refresh token

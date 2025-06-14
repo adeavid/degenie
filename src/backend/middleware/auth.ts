@@ -19,6 +19,10 @@ const globalForPrisma = globalThis as unknown as {
 
 const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
+if (!process.env['JWT_SECRET']) {
+  throw new Error('JWT_SECRET env var must be set');
+}
+
 if (process.env['NODE_ENV'] !== 'production') globalForPrisma.prisma = prisma;
 
 declare global {

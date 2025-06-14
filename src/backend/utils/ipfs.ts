@@ -1,5 +1,9 @@
-// Mock IPFS client for development
-// TODO: Replace with actual ipfs-http-client when package issues are resolved
+// Mock IPFS client for **development only**.
+// WARNING: Guard with an environment flag so this code is never loaded in production.
+if (process.env['NODE_ENV'] === 'production') {
+  throw new Error('Mock IPFS client should not be bundled in production builds');
+}
+
 const ipfsClient = {
   add: async (data: any, _options?: any) => {
     // Mock implementation - returns a fake CID

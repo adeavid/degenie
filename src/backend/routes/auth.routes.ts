@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Validation schemas
 const walletLoginSchema = z.object({
@@ -61,22 +60,23 @@ router.post('/wallet', async (req: Request, res: Response) => {
         if (referrer) {
           userData.referredBy = referrer.id;
           
-          // Award referral credits
-          await prisma.creditTransaction.create({
-            data: {
-              userId: referrer.id,
-              amount: 1.0,
-              type: 'earn',
-              reason: 'referral_signup',
-              balanceBefore: referrer.credits,
-              balanceAfter: referrer.credits + 1.0,
-            },
-          });
-          
-          await prisma.user.update({
-            where: { id: referrer.id },
-            data: { credits: { increment: 1.0 } },
-          });
+          // Award referral credits atomically
+          await prisma.$transaction([
+            prisma.creditTransaction.create({
+              data: {
+                userId: referrer.id,
+                amount: 1.0,
+                type: 'earn',
+                reason: 'referral_signup',
+                balanceBefore: referrer.credits,
+                balanceAfter: referrer.credits + 1.0,
+              },
+            }),
+            prisma.user.update({
+              where: { id: referrer.id },
+              data: { credits: { increment: 1.0 } },
+            }),
+          ]);
         }
       }
 
@@ -181,22 +181,23 @@ router.post('/register', async (req: Request, res: Response) => {
       if (referrer) {
         userData.referredBy = referrer.id;
         
-        // Award referral credits
-        await prisma.creditTransaction.create({
-          data: {
-            userId: referrer.id,
-            amount: 1.0,
-            type: 'earn',
-            reason: 'referral_signup',
-            balanceBefore: referrer.credits,
-            balanceAfter: referrer.credits + 1.0,
-          },
-        });
-        
-        await prisma.user.update({
-          where: { id: referrer.id },
-          data: { credits: { increment: 1.0 } },
-        });
+        // Award referral credits atomically
+        await prisma.$transaction([
+          prisma.creditTransaction.create({
+            data: {
+              userId: referrer.id,
+              amount: 1.0,
+              type: 'earn',
+              reason: 'referral_signup',
+              balanceBefore: referrer.credits,
+              balanceAfter: referrer.credits + 1.0,
+            },
+          }),
+          prisma.user.update({
+            where: { id: referrer.id },
+            data: { credits: { increment: 1.0 } },
+          }),
+        ]);
       }
     }
 

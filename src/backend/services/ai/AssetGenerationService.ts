@@ -198,7 +198,7 @@ export class AssetGenerationService {
 
       // Cache result
       await this.redis.setex(
-        `generation:${generationId}`,
+        `generation:${userId}:${generationId}`,
         86400, // 24 hours
         JSON.stringify(metadata)
       );
@@ -309,9 +309,9 @@ export class AssetGenerationService {
     await this.redis.hincrby(`usage:global:${tier}`, assetType, 1);
   }
 
-  async getGenerationHistory(_userId: string, limit = 10): Promise<GenerationResult[]> {
+  async getGenerationHistory(userId: string, limit = 10): Promise<GenerationResult[]> {
     // Implementation for retrieving user's generation history
-    const keys = await this.redis.keys(`generation:*`);
+    const keys = await this.redis.keys(`generation:${userId}:*`);
     const results: GenerationResult[] = [];
     
     for (const key of keys.slice(0, limit)) {
