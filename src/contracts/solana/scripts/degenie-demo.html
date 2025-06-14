@@ -653,8 +653,9 @@
             }
 
             const userId = document.getElementById('userSelect').value;
-            const solAmountInput = parseFloat(document.getElementById('solAmount').value);
-            const solAmount = solAmountInput * demoState.LAMPORTS_PER_SOL;
+            const solAmountInput = document.getElementById('solAmount').value;
+            // Convert SOL to lamports using integer math (multiply by 1e9)
+            const solAmount = Math.floor(Number(solAmountInput) * demoState.LAMPORTS_PER_SOL);
             const user = demoState.users[userId];
             const token = demoState.currentToken;
 
@@ -668,7 +669,7 @@
                 checkAntiBotProtections(userId, solAmount);
 
                 // Calculate fees and tokens
-                const transactionFee = Math.floor(solAmount * 0.01);
+                const transactionFee = Math.floor(solAmount / 100); // 1% fee
                 const solAfterFee = solAmount - transactionFee;
                 const tokensToMint = Math.floor(solAfterFee / token.currentPrice);
 
@@ -687,8 +688,8 @@
                 token.transactionCount++;
 
                 // Split fees
-                const creatorFee = Math.floor(transactionFee * 0.5);
-                const platformFee = Math.floor(transactionFee * 0.5);
+                const creatorFee = Math.floor(transactionFee / 2);
+                const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
                 demoState.users.creator.balance += creatorFee;
                 
                 // Update price (1% growth rate)
@@ -750,9 +751,9 @@
                 return;
             }
 
-            // Calculate SOL to return
+            // Calculate SOL to return (all values in lamports)
             const solToReturn = tokenAmount * token.currentPrice;
-            const transactionFee = Math.floor(solToReturn * 0.01);
+            const transactionFee = Math.floor(solToReturn / 100); // 1% fee using integer division
             const solAfterFee = solToReturn - transactionFee;
 
             // Process transaction
@@ -765,8 +766,8 @@
             token.transactionCount++;
 
             // Split fees
-            const creatorFee = Math.floor(transactionFee * 0.5);
-            const platformFee = Math.floor(transactionFee * 0.5);
+            const creatorFee = Math.floor(transactionFee / 2);
+            const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
             demoState.users.creator.balance += creatorFee;
 
             // Update price (decrease)
@@ -873,7 +874,7 @@
                         const userObj = demoState.users[user];
                         const tokens = userObj.tokens[demoState.currentToken.id] || 0;
                         if (tokens > 1000) {
-                            const sellAmount = Math.floor(tokens * (0.1 + Math.random() * 0.4));
+                            const sellAmount = Math.floor(tokens * (10 + Math.floor(Math.random() * 40)) / 100); // 10-50% sell
                             simulateSell(user, sellAmount);
                         }
                     }
@@ -917,7 +918,7 @@
             }
 
             // Calculate fees and tokens
-            const transactionFee = Math.floor(solAmount * 0.01);
+            const transactionFee = Math.floor(solAmount / 100); // 1% fee
             const solAfterFee = solAmount - transactionFee;
             const tokensToMint = Math.floor(solAfterFee / token.currentPrice);
 
@@ -936,8 +937,8 @@
             token.transactionCount++;
 
             // Split fees
-            const creatorFee = Math.floor(transactionFee * 0.5);
-            const platformFee = Math.floor(transactionFee * 0.5);
+            const creatorFee = Math.floor(transactionFee / 2);
+            const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
             demoState.users.creator.balance += creatorFee;
             
             // Update price (1% growth rate)
@@ -967,9 +968,9 @@
                 throw new Error('Insufficient tokens');
             }
 
-            // Calculate SOL to return
+            // Calculate SOL to return (all values in lamports)
             const solToReturn = tokenAmount * token.currentPrice;
-            const transactionFee = Math.floor(solToReturn * 0.01);
+            const transactionFee = Math.floor(solToReturn / 100); // 1% fee using integer division
             const solAfterFee = solToReturn - transactionFee;
 
             // Process transaction
@@ -982,8 +983,8 @@
             token.transactionCount++;
 
             // Split fees
-            const creatorFee = Math.floor(transactionFee * 0.5);
-            const platformFee = Math.floor(transactionFee * 0.5);
+            const creatorFee = Math.floor(transactionFee / 2);
+            const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
             demoState.users.creator.balance += creatorFee;
 
             // Update price
@@ -1084,9 +1085,9 @@
             token.isGraduated = true;
 
             // Calculate distribution
-            const liquidityAmount = Math.floor(token.treasuryBalance * 0.85);
-            const platformFee = Math.floor(token.treasuryBalance * 0.10);
-            const creatorBonus = Math.floor(token.treasuryBalance * 0.05);
+            const liquidityAmount = Math.floor(token.treasuryBalance * 85 / 100); // 85%
+            const platformFee = Math.floor(token.treasuryBalance * 10 / 100); // 10%
+            const creatorBonus = token.treasuryBalance - liquidityAmount - platformFee; // 5% (remainder)
 
             // Award creator bonus
             demoState.users.creator.balance += creatorBonus;

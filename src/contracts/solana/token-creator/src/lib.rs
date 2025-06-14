@@ -247,6 +247,13 @@ pub mod degenie_token_creator {
         bonding_curve.transaction_cooldown = 30; // 30 seconds between transactions
         bonding_curve.max_price_impact_bps = 500; // 5% max price impact
 
+        // Initialize treasury if needed
+        let treasury = &mut ctx.accounts.treasury;
+        if treasury.authority == Pubkey::default() {
+            treasury.authority = ctx.accounts.authority.key();
+            treasury.bump = ctx.bumps.treasury;
+        }
+
         // Charge creation fee
         let cpi_context = CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
@@ -256,6 +263,16 @@ pub mod degenie_token_creator {
             },
         );
         anchor_lang::system_program::transfer(cpi_context, bonding_curve.creation_fee)?;
+
+        // Update the on-chain treasury_balance to include the creation fee
+        bonding_curve.treasury_balance = bonding_curve
+            .treasury_balance
+            .saturating_add(bonding_curve.creation_fee);
+        
+        // Update treasury total collected
+        treasury.total_collected = treasury
+            .total_collected
+            .saturating_add(bonding_curve.creation_fee);
 
         msg!("Enhanced bonding curve initialized with anti-bot protection");
         msg!("Type: {:?}, Growth: {}%, Initial Price: {}", 
@@ -806,9 +823,14 @@ pub struct InitializeBondingCurve<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     
-    /// CHECK: Treasury account for collecting fees
-    #[account(mut)]
-    pub treasury: UncheckedAccount<'info>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + Treasury::INIT_SPACE,
+        seeds = [b"treasury"],
+        bump
+    )]
+    pub treasury: Account<'info, Treasury>,
     
     pub system_program: Program<'info, System>,
 }
@@ -840,9 +862,12 @@ pub struct BuyTokens<'info> {
     )]
     pub user_tracker: Account<'info, UserTracker>,
     
-    /// CHECK: Treasury account for collecting SOL
-    #[account(mut)]
-    pub treasury: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"treasury"],
+        bump = treasury.bump
+    )]
+    pub treasury: Account<'info, Treasury>,
     
     /// CHECK: Creator account for receiving fees
     #[account(mut)]
@@ -921,9 +946,12 @@ pub struct CreateRaydiumPool<'info> {
     #[account(mut)]
     pub pool_state: UncheckedAccount<'info>,
     
-    /// CHECK: Treasury account holding SOL for liquidity
-    #[account(mut)]
-    pub treasury: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"treasury"],
+        bump = treasury.bump
+    )]
+    pub treasury: Account<'info, Treasury>,
     
     /// CHECK: Token vault for the pool
     #[account(mut)]
@@ -999,6 +1027,14 @@ pub struct UserTracker {
     pub bump: u8,
 }
 
+#[account]
+#[derive(InitSpace)]
+pub struct Treasury {
+    pub authority: Pubkey,
+    pub total_collected: u64,
+    pub bump: u8,
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, InitSpace)]
 pub enum CurveType {
     Linear,
@@ -1023,23 +1059,48 @@ pub fn calculate_price_exponential(
     let scale_factor = 1000;
     let supply_scaled = total_supply / scale_factor;
     
-    // Calculate (1 + growth_rate/10000)^supply_scaled using fixed-point math
-    let mut price = initial_price;
-    let growth_multiplier = 10000 + growth_rate; // e.g., 10100 for 1% growth
+    // Calculate (1 + growth_rate/10000)^supply_scaled using fast exponentiation
+    let growth_multiplier = 10000u128 + growth_rate as u128; // e.g., 10100 for 1% growth
     
-    // Apply exponential growth with compute unit protection
-    // Limit iterations to prevent exceeding Solana's 200k CU limit
-    let safe_iterations = std::cmp::min(supply_scaled, 50);
+    // Use u128 for intermediate calculations to prevent overflow
+    let mut result = 10000u128; // Start with 1.0 in fixed point
+    let mut base = growth_multiplier;
+    let mut exp = supply_scaled;
     
-    for _ in 0..safe_iterations {
-        price = price
-            .checked_mul(growth_multiplier)
+    // Fast exponentiation by squaring - O(log n) instead of O(n)
+    while exp > 0 {
+        if exp & 1 == 1 {
+            // If exp is odd, multiply result by base
+            result = result
+                .checked_mul(base)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(10000)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+        }
+        
+        // Square the base
+        base = base
+            .checked_mul(base)
             .ok_or(TokenCreatorError::InvalidAmount)?
             .checked_div(10000)
             .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        exp >>= 1; // Divide exp by 2
     }
     
-    Ok(price)
+    // Apply result to initial price and convert back to u64
+    let price_u128 = (initial_price as u128)
+        .checked_mul(result)
+        .ok_or(TokenCreatorError::InvalidAmount)?
+        .checked_div(10000)
+        .ok_or(TokenCreatorError::InvalidAmount)?;
+    
+    // Ensure result fits in u64
+    if price_u128 > u64::MAX as u128 {
+        return Err(TokenCreatorError::InvalidAmount);
+    }
+    
+    Ok(price_u128 as u64)
 }
 
 pub fn calculate_tokens_for_sol_with_curve(

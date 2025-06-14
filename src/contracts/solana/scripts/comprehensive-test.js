@@ -306,7 +306,7 @@ class DeGenieTestSuite {
         for (const trade of trades) {
             try {
                 const result = trade.type === 'buy' ? 
-                    await simulator.simulateBuy(trade.amount * this.LAMPORTS_PER_SOL) :
+                    await simulator.simulateBuy(trade.amount) :
                     await simulator.simulateSell(trade.amount);
                 
                 console.log(`      ${trade.user} ${trade.type} ${trade.amount}: ${result.success ? '✅' : '❌'}`);
@@ -589,8 +589,8 @@ class DeGenieTestSuite {
         };
     }
 
-    async simulateBuy(user, solAmount) {
-        const solLamports = solAmount * this.LAMPORTS_PER_SOL;
+    async simulateBuy(user, solAmountInSol) {
+        const solLamports = solAmountInSol * this.LAMPORTS_PER_SOL;
         
         // Simulate various protections
         if (solLamports > 1_000_000_000) { // > 1 SOL during protection
@@ -604,7 +604,7 @@ class DeGenieTestSuite {
         return {
             success: true,
             newPrice: 1000 + Math.random() * 100,
-            priceImpact: Math.min(solAmount * 2, 10),
+            priceImpact: Math.min(solAmountInSol * 2, 10),
             treasuryBalance: solLamports * 0.99
         };
     }
@@ -625,18 +625,18 @@ class DeGenieTestSuite {
         throw new Error('AlreadyGraduated');
     }
 
-    calculatePriceImpact(solAmount) {
+    calculatePriceImpact(solAmountInSol) {
         // Simulate price impact calculation
-        const impact = Math.min(solAmount * 2, 10);
-        const limit = solAmount < 0.1 ? 1 : solAmount < 1 ? 3 : solAmount < 10 ? 5 : 8;
+        const impact = Math.min(solAmountInSol * 2, 10);
+        const limit = solAmountInSol < 0.1 ? 1 : solAmountInSol < 1 ? 3 : solAmountInSol < 10 ? 5 : 8;
         
         return { impact, limit };
     }
 
-    calculateFees(solAmount) {
-        const transactionFee = Math.floor(solAmount * 0.01);
-        const creatorFee = Math.floor(transactionFee * 0.5);
-        const platformFee = Math.floor(transactionFee * 0.5);
+    calculateFees(lamports) {
+        const transactionFee = Math.floor(lamports / 100); // 1%
+        const creatorFee = Math.floor(transactionFee / 2);
+        const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
         
         return { creator: creatorFee, platform: platformFee, transaction: transactionFee };
     }
@@ -709,8 +709,8 @@ class BondingCurveSimulator {
         this.growthRate = 100; // 1%
     }
 
-    async simulateBuy(solAmount) {
-        const tokensToMint = Math.floor(solAmount / this.currentPrice);
+    async simulateBuy(lamports) {
+        const tokensToMint = Math.floor(lamports / this.currentPrice);
         this.totalSupply += tokensToMint;
         
         // Exponential price update
