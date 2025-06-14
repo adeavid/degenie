@@ -438,7 +438,7 @@ pub mod degenie_token_creator {
 
         // Update bonding curve state
         bonding_curve.total_supply += tokens_to_mint;
-        bonding_curve.treasury_balance += sol_after_fee;
+        bonding_curve.treasury_balance += sol_amount; // Add gross amount first
         bonding_curve.total_volume += sol_amount;
         
         // Update price based on curve type
@@ -615,9 +615,13 @@ pub mod degenie_token_creator {
         // Update price based on curve type
         match bonding_curve.curve_type {
             CurveType::Linear => {
-                bonding_curve.current_price = bonding_curve.current_price.saturating_sub(
-                    bonding_curve.price_increment * token_amount / 1000
-                );
+                let price_decrease = bonding_curve.price_increment
+                    .checked_mul(token_amount)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .saturating_sub(price_decrease);
             },
             CurveType::Exponential => {
                 bonding_curve.current_price = calculate_price_exponential(
@@ -627,10 +631,14 @@ pub mod degenie_token_creator {
                 )?;
             },
             CurveType::Logarithmic => {
-                // Future implementation
-                bonding_curve.current_price = bonding_curve.current_price.saturating_sub(
-                    bonding_curve.price_increment * token_amount / 1000
-                );
+                // Future implementation - use same safe arithmetic as Linear
+                let price_decrease = bonding_curve.price_increment
+                    .checked_mul(token_amount)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .saturating_sub(price_decrease);
             }
         }
 
@@ -913,9 +921,12 @@ pub struct SellTokens<'info> {
     #[account(mut)]
     pub seller_token_account: Account<'info, TokenAccount>,
     
-    /// CHECK: Treasury account for SOL storage
-    #[account(mut)]
-    pub treasury: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"treasury", mint.key().as_ref()],
+        bump = treasury.bump
+    )]
+    pub treasury: Account<'info, Treasury>,
     
     /// CHECK: Creator account for receiving fees
     #[account(mut)]
