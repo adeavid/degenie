@@ -709,7 +709,8 @@ class BondingCurveSimulator {
         this.growthRate = 100; // 1%
     }
 
-    async simulateBuy(lamports) {
+    async simulateBuy(solAmountInSol) {
+        const lamports = solAmountInSol * 1_000_000_000; // Convert SOL to lamports
         const tokensToMint = Math.floor(lamports / this.currentPrice);
         this.totalSupply += tokensToMint;
         
@@ -777,8 +778,8 @@ class TreasurySimulator {
         const fees = solAmount * 0.01;
         const netPayout = solAmount - fees;
         
-        this.recordedBalance -= solAmount;
-        this.actualBalance -= solAmount;
+        this.recordedBalance -= netPayout;
+        this.actualBalance -= netPayout;
         
         return { success: true };
     }

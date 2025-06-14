@@ -374,13 +374,21 @@ pub mod degenie_token_creator {
                 .checked_div(bonding_curve.transaction_fee_bps as u64)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
-            // Transfer creator fee
-            let creator_cpi = CpiContext::new(
+            // Transfer creator fee with treasury as signer
+            let treasury_seeds = &[
+                b"treasury",
+                ctx.accounts.mint.key().as_ref(),
+                &[ctx.accounts.treasury.bump],
+            ];
+            let signer_seeds = &[&treasury_seeds[..]];
+            
+            let creator_cpi = CpiContext::new_with_signer(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
                     from: ctx.accounts.treasury.to_account_info(),
                     to: ctx.accounts.creator.to_account_info(),
                 },
+                signer_seeds,
             );
             anchor_lang::system_program::transfer(creator_cpi, creator_fee)?;
             
@@ -392,13 +400,14 @@ pub mod degenie_token_creator {
                 TokenCreatorError::InvalidAmount
             );
             
-            // Transfer platform fee to DeGenie treasury
-            let platform_cpi = CpiContext::new(
+            // Transfer platform fee to DeGenie treasury with treasury as signer
+            let platform_cpi = CpiContext::new_with_signer(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
                     from: ctx.accounts.treasury.to_account_info(),
                     to: ctx.accounts.platform_treasury.to_account_info(),
                 },
+                signer_seeds,
             );
             anchor_lang::system_program::transfer(platform_cpi, platform_fee)?;
             
@@ -533,13 +542,13 @@ pub mod degenie_token_creator {
         );
         burn(burn_ctx, token_amount)?;
 
-        // Transfer SOL back to seller
-        let seeds = &[
-            b"bonding_curve",
-            bonding_curve.mint.as_ref(),
-            &[bonding_curve.bump],
+        // Transfer SOL back to seller with treasury as signer
+        let treasury_seeds = &[
+            b"treasury",
+            ctx.accounts.mint.key().as_ref(),
+            &[ctx.accounts.treasury.bump],
         ];
-        let signer = &[&seeds[..]];
+        let signer_seeds = &[&treasury_seeds[..]];
 
         let transfer_ctx = CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),
@@ -547,7 +556,7 @@ pub mod degenie_token_creator {
                 from: ctx.accounts.treasury.to_account_info(),
                 to: ctx.accounts.seller.to_account_info(),
             },
-            signer,
+            signer_seeds,
         );
         anchor_lang::system_program::transfer(transfer_ctx, sol_to_return_net)?;
 
@@ -565,14 +574,14 @@ pub mod degenie_token_creator {
                 .checked_div(bonding_curve.transaction_fee_bps as u64)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
             
-            // Transfer creator fee
+            // Transfer creator fee with treasury as signer
             let creator_cpi = CpiContext::new_with_signer(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
                     from: ctx.accounts.treasury.to_account_info(),
                     to: ctx.accounts.creator.to_account_info(),
                 },
-                signer,
+                signer_seeds,
             );
             anchor_lang::system_program::transfer(creator_cpi, creator_fee)?;
             
@@ -590,7 +599,7 @@ pub mod degenie_token_creator {
                     from: ctx.accounts.treasury.to_account_info(),
                     to: ctx.accounts.platform_treasury.to_account_info(),
                 },
-                signer,
+                signer_seeds,
             );
             anchor_lang::system_program::transfer(platform_cpi, platform_fee)?;
             
@@ -662,11 +671,16 @@ pub mod degenie_token_creator {
         // Mark as graduated
         bonding_curve.is_graduated = true;
         
+        // Update treasury balance to reflect liquidity migration
+        bonding_curve.treasury_balance = bonding_curve
+            .treasury_balance
+            .saturating_sub(liquidity_amount);
+        
         msg!("🎓 TOKEN GRADUATED!");
         msg!("Market cap: {} SOL", market_cap as f64 / 1_000_000_000.0);
         msg!("Liquidity for Raydium: {} SOL", liquidity_amount as f64 / 1_000_000_000.0);
         msg!("Remaining treasury: {} SOL", 
-             (bonding_curve.treasury_balance - liquidity_amount) as f64 / 1_000_000_000.0);
+             bonding_curve.treasury_balance as f64 / 1_000_000_000.0);
         
         // TODO: Actual Raydium pool creation will be handled by separate instruction
         // This requires Raydium SDK integration
@@ -827,7 +841,7 @@ pub struct InitializeBondingCurve<'info> {
         init_if_needed,
         payer = authority,
         space = 8 + Treasury::INIT_SPACE,
-        seeds = [b"treasury"],
+        seeds = [b"treasury", mint.key().as_ref()],
         bump
     )]
     pub treasury: Account<'info, Treasury>,
@@ -864,7 +878,7 @@ pub struct BuyTokens<'info> {
     
     #[account(
         mut,
-        seeds = [b"treasury"],
+        seeds = [b"treasury", mint.key().as_ref()],
         bump = treasury.bump
     )]
     pub treasury: Account<'info, Treasury>,
@@ -948,7 +962,7 @@ pub struct CreateRaydiumPool<'info> {
     
     #[account(
         mut,
-        seeds = [b"treasury"],
+        seeds = [b"treasury", mint.key().as_ref()],
         bump = treasury.bump
     )]
     pub treasury: Account<'info, Treasury>,
