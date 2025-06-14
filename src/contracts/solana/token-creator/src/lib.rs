@@ -11,6 +11,18 @@ use solana_program::program_option::COption;
 
 declare_id!("DeGenieTokenCreator11111111111111111111111");
 
+// DeGenie Platform Treasury - Replace with your actual wallet
+pub const DEGENIE_PLATFORM_TREASURY: &str = "3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF";
+
+// Fixed graduation threshold - 500 SOL for all tokens
+// Why fixed SOL instead of USD?
+// 1. No oracle dependency = simpler, cheaper, more reliable
+// 2. Traders think in SOL, not USD when trading on Solana
+// 3. Predictable for everyone: "500 SOL = graduation"
+// 4. At SOL=$145, this is ~$72,500 (similar to pump.fun's $69k)
+pub const GRADUATION_THRESHOLD_SOL: u64 = 500;
+pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
+
 #[program]
 pub mod degenie_token_creator {
     use super::*;
@@ -179,42 +191,164 @@ pub mod degenie_token_creator {
         Ok(())
     }
 
-    /// Initialize bonding curve for token
+    /// Initialize bonding curve for token with enhanced features and anti-bot protection
     pub fn initialize_bonding_curve(
         ctx: Context<InitializeBondingCurve>,
         initial_price: u64,
         price_increment: u64,
         max_supply: u64,
+        curve_type: CurveType,
+        growth_rate: u64,
+        // graduation_threshold removed - now using fixed 500 SOL
     ) -> Result<()> {
+        require!(initial_price > 0, TokenCreatorError::InvalidAmount);
+        require!(max_supply > 0, TokenCreatorError::InvalidAmount);
+        require!(price_increment > 0, TokenCreatorError::InvalidAmount);
+        
+        // Validate growth_rate based on curve type
+        match curve_type {
+            CurveType::Linear => {
+                require!(growth_rate == 0, TokenCreatorError::InvalidAmount);
+            },
+            CurveType::Exponential => {
+                require!(growth_rate > 0 && growth_rate <= 10000, TokenCreatorError::InvalidAmount);
+            },
+            CurveType::Logarithmic => {
+                // Future implementation - allow any value for now
+            }
+        }
+        
         let bonding_curve = &mut ctx.accounts.bonding_curve;
+        let clock = Clock::get()?;
         
         bonding_curve.mint = ctx.accounts.mint.key();
         bonding_curve.current_price = initial_price;
+        bonding_curve.initial_price = initial_price;
         bonding_curve.price_increment = price_increment;
         bonding_curve.total_supply = 0;
         bonding_curve.max_supply = max_supply;
         bonding_curve.authority = ctx.accounts.authority.key();
         bonding_curve.bump = ctx.bumps.bonding_curve;
+        bonding_curve.curve_type = curve_type;
+        bonding_curve.growth_rate = growth_rate;
+        bonding_curve.treasury_balance = 0;
+        bonding_curve.total_volume = 0;
+        bonding_curve.graduation_threshold = GRADUATION_THRESHOLD_SOL * LAMPORTS_PER_SOL; // Fixed 500 SOL
+        bonding_curve.is_graduated = false;
+        bonding_curve.creation_fee = 20_000_000; // 0.02 SOL
+        bonding_curve.transaction_fee_bps = 100; // 1%
+        bonding_curve.creator_fee_bps = 50; // 0.5%
+        bonding_curve.platform_fee_bps = 50; // 0.5%
+        
+        // Anti-bot protection settings
+        bonding_curve.creation_timestamp = clock.unix_timestamp;
+        bonding_curve.launch_protection_period = 3600; // 1 hour protection
+        bonding_curve.max_buy_during_protection = 1_000_000_000; // 1 SOL max during protection
+        bonding_curve.transaction_cooldown = 30; // 30 seconds between transactions
+        bonding_curve.max_price_impact_bps = 500; // 5% max price impact
 
-        msg!("Bonding curve initialized with initial price: {}", initial_price);
+        // Initialize treasury if needed
+        let treasury = &mut ctx.accounts.treasury;
+        if treasury.authority == Pubkey::default() {
+            treasury.authority = ctx.accounts.authority.key();
+            treasury.bump = ctx.bumps.treasury;
+        } else {
+            // Validate existing treasury owner to prevent hijacking
+            require!(
+                treasury.authority == ctx.accounts.authority.key(),
+                TokenCreatorError::InsufficientAuthority
+            );
+        }
+
+        // Charge creation fee
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.authority.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_context, bonding_curve.creation_fee)?;
+
+        // Update the on-chain treasury_balance to include the creation fee
+        bonding_curve.treasury_balance = bonding_curve
+            .treasury_balance
+            .saturating_add(bonding_curve.creation_fee);
+        
+        // Update treasury total collected
+        treasury.total_collected = treasury
+            .total_collected
+            .saturating_add(bonding_curve.creation_fee);
+
+        msg!("Enhanced bonding curve initialized with anti-bot protection");
+        msg!("Type: {:?}, Growth: {}%, Initial Price: {}", 
+             curve_type, growth_rate as f64 / 100.0, initial_price);
+        msg!("Protection: {}h, Max buy: {} SOL, Cooldown: {}s", 
+             bonding_curve.launch_protection_period / 3600,
+             bonding_curve.max_buy_during_protection as f64 / 1_000_000_000.0,
+             bonding_curve.transaction_cooldown);
         Ok(())
     }
 
-    /// Buy tokens through bonding curve
+    /// Buy tokens through enhanced bonding curve with anti-bot protection
     pub fn buy_tokens(
         ctx: Context<BuyTokens>,
         sol_amount: u64,
     ) -> Result<()> {
         require!(sol_amount > 0, TokenCreatorError::InvalidAmount);
+        require!(!ctx.accounts.bonding_curve.is_graduated, TokenCreatorError::AlreadyGraduated);
         
         let bonding_curve = &mut ctx.accounts.bonding_curve;
+        let user_tracker = &mut ctx.accounts.user_tracker;
+        let clock = Clock::get()?;
         
-        // Calculate tokens to mint based on bonding curve
-        let tokens_to_mint = calculate_tokens_for_sol(
-            sol_amount,
-            bonding_curve.current_price,
-            bonding_curve.price_increment,
+        // Anti-bot protections
+        let token_age = clock.unix_timestamp - bonding_curve.creation_timestamp;
+        let is_protection_period = token_age < bonding_curve.launch_protection_period;
+        
+        // 1. Rate limiting: Check cooldown between transactions
+        if user_tracker.last_transaction_time > 0 {
+            let time_since_last = clock.unix_timestamp - user_tracker.last_transaction_time;
+            require!(
+                time_since_last >= bonding_curve.transaction_cooldown as i64,
+                TokenCreatorError::TransactionCooldown
+            );
+        }
+        
+        // 2. Protection period limits: Max buy amount during first hour
+        if is_protection_period {
+            require!(
+                sol_amount <= bonding_curve.max_buy_during_protection,
+                TokenCreatorError::ExceedsProtectionLimit
+            );
+        }
+        
+        // 3. Price impact protection: Calculate and validate price impact
+        let price_impact = calculate_price_impact(sol_amount, bonding_curve)?;
+        require!(
+            price_impact <= bonding_curve.max_price_impact_bps,
+            TokenCreatorError::ExceedsPriceImpactLimit
+        );
+        
+        // Calculate transaction fee
+        let transaction_fee = sol_amount
+            .checked_mul(bonding_curve.transaction_fee_bps as u64)
+            .ok_or(TokenCreatorError::InvalidAmount)?
+            .checked_div(10000)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        let sol_after_fee = sol_amount
+            .checked_sub(transaction_fee)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        // Calculate tokens to mint based on curve type
+        let tokens_to_mint = calculate_tokens_for_sol_with_curve(
+            sol_after_fee,
+            bonding_curve,
         )?;
+
+        // Reject zero-token purchases to prevent silent SOL burns
+        require!(tokens_to_mint > 0, TokenCreatorError::InvalidAmount);
 
         // Check max supply
         require!(
@@ -231,6 +365,73 @@ pub mod degenie_token_creator {
             },
         );
         anchor_lang::system_program::transfer(cpi_context, sol_amount)?;
+        
+        // Update treasury balance immediately after receiving funds
+        bonding_curve.treasury_balance = bonding_curve
+            .treasury_balance
+            .saturating_add(sol_amount);
+
+        // Split fees between creator and platform
+        if transaction_fee > 0 {
+            let creator_fee = transaction_fee
+                .checked_mul(bonding_curve.creator_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(bonding_curve.transaction_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            
+            // Calculate platform fee as remainder to ensure exact sum
+            let platform_fee = transaction_fee
+                .checked_sub(creator_fee)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            
+            // Transfer creator fee with treasury as signer
+            let treasury_seeds = &[
+                b"treasury",
+                ctx.accounts.mint.key().as_ref(),
+                &[ctx.accounts.treasury.bump],
+            ];
+            let signer_seeds = &[&treasury_seeds[..]];
+            
+            // Validate creator account for defense-in-depth
+            require!(
+                ctx.accounts.creator.key() == bonding_curve.authority,
+                TokenCreatorError::InsufficientAuthority
+            );
+            
+            let creator_cpi = CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.treasury.to_account_info(),
+                    to: ctx.accounts.creator.to_account_info(),
+                },
+                signer_seeds,
+            );
+            anchor_lang::system_program::transfer(creator_cpi, creator_fee)?;
+            
+            // Validate platform treasury address
+            let expected_platform_treasury = DEGENIE_PLATFORM_TREASURY.parse::<Pubkey>()
+                .map_err(|_| TokenCreatorError::InvalidAmount)?;
+            require!(
+                ctx.accounts.platform_treasury.key() == expected_platform_treasury,
+                TokenCreatorError::InvalidAmount
+            );
+            
+            // Transfer platform fee to DeGenie treasury with treasury as signer
+            let platform_cpi = CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.treasury.to_account_info(),
+                    to: ctx.accounts.platform_treasury.to_account_info(),
+                },
+                signer_seeds,
+            );
+            anchor_lang::system_program::transfer(platform_cpi, platform_fee)?;
+            
+            // Update treasury balance correctly (subtract fees paid out)
+            bonding_curve.treasury_balance = bonding_curve.treasury_balance
+                .saturating_sub(creator_fee)
+                .saturating_sub(platform_fee);
+        }
 
         // Mint tokens to buyer
         let seeds = &[
@@ -253,27 +454,97 @@ pub mod degenie_token_creator {
 
         // Update bonding curve state
         bonding_curve.total_supply += tokens_to_mint;
-        bonding_curve.current_price += bonding_curve.price_increment * tokens_to_mint / 1000; // Adjust price
+        bonding_curve.total_volume += sol_amount;
+        
+        // Update price based on curve type
+        match bonding_curve.curve_type {
+            CurveType::Linear => {
+                let price_increase = bonding_curve.price_increment
+                    .checked_mul(tokens_to_mint)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .checked_add(price_increase)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+            },
+            CurveType::Exponential => {
+                bonding_curve.current_price = calculate_price_exponential(
+                    bonding_curve.initial_price,
+                    bonding_curve.total_supply,
+                    bonding_curve.growth_rate,
+                )?;
+            },
+            CurveType::Logarithmic => {
+                // Future implementation - use same safe arithmetic as Linear for now
+                let price_increase = bonding_curve.price_increment
+                    .checked_mul(tokens_to_mint)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .checked_add(price_increase)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+            }
+        }
+        
+        // Check for graduation
+        let market_cap = bonding_curve.total_supply
+            .checked_mul(bonding_curve.current_price)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        if market_cap >= bonding_curve.graduation_threshold {
+            bonding_curve.is_graduated = true;
+            msg!("🎓 Token graduated! Market cap: {} lamports", market_cap);
+            // TODO: Trigger DEX migration
+        }
+        
+        // Update user tracker
+        user_tracker.wallet = ctx.accounts.buyer.key();
+        user_tracker.mint = bonding_curve.mint;
+        user_tracker.last_transaction_time = clock.unix_timestamp;
+        user_tracker.total_bought_sol = user_tracker.total_bought_sol.saturating_add(sol_amount);
+        user_tracker.transaction_count = user_tracker.transaction_count.saturating_add(1);
+        user_tracker.bump = ctx.bumps.user_tracker;
 
-        msg!("Bought {} tokens for {} SOL", tokens_to_mint, sol_amount);
+        msg!("Bought {} tokens for {} SOL (fee: {} SOL) - Anti-bot protections active", 
+             tokens_to_mint, 
+             sol_amount as f64 / 1_000_000_000.0,
+             transaction_fee as f64 / 1_000_000_000.0);
+        
+        if is_protection_period {
+            msg!("🛡️ Protection period active: {} minutes remaining", 
+                 (bonding_curve.launch_protection_period - token_age) / 60);
+        }
+        
         Ok(())
     }
 
-    /// Sell tokens through bonding curve
+    /// Sell tokens through enhanced bonding curve
     pub fn sell_tokens(
         ctx: Context<SellTokens>,
         token_amount: u64,
     ) -> Result<()> {
         require!(token_amount > 0, TokenCreatorError::InvalidAmount);
+        require!(!ctx.accounts.bonding_curve.is_graduated, TokenCreatorError::AlreadyGraduated);
         
         let bonding_curve = &mut ctx.accounts.bonding_curve;
         
-        // Calculate SOL to return based on bonding curve
-        let sol_to_return = calculate_sol_for_tokens(
+        // Calculate transaction fee
+        let sol_to_return_gross = calculate_sol_for_tokens_with_curve(
             token_amount,
-            bonding_curve.current_price,
-            bonding_curve.price_increment,
+            bonding_curve,
         )?;
+        
+        let transaction_fee = sol_to_return_gross
+            .checked_mul(bonding_curve.transaction_fee_bps as u64)
+            .ok_or(TokenCreatorError::InvalidAmount)?
+            .checked_div(10000)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        let sol_to_return_net = sol_to_return_gross
+            .checked_sub(transaction_fee)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
 
         // Burn tokens from seller
         let burn_ctx = CpiContext::new(
@@ -286,32 +557,190 @@ pub mod degenie_token_creator {
         );
         burn(burn_ctx, token_amount)?;
 
-        // Transfer SOL back to seller using system program (safe)
-        let seeds = &[
-            b"bonding_curve",
-            bonding_curve.mint.as_ref(),
-            &[bonding_curve.bump],
+        // Transfer SOL back to seller with treasury as signer
+        let treasury_seeds = &[
+            b"treasury",
+            ctx.accounts.mint.key().as_ref(),
+            &[ctx.accounts.treasury.bump],
         ];
-        let signer = &[&seeds[..]];
+        let signer_seeds = &[&treasury_seeds[..]];
 
-        // Safe SOL transfer using system program
         let transfer_ctx = CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),
             anchor_lang::system_program::Transfer {
                 from: ctx.accounts.treasury.to_account_info(),
                 to: ctx.accounts.seller.to_account_info(),
             },
-            signer,
+            signer_seeds,
         );
-        anchor_lang::system_program::transfer(transfer_ctx, sol_to_return)?;
+        anchor_lang::system_program::transfer(transfer_ctx, sol_to_return_net)?;
+
+        // Update fees
+        if transaction_fee > 0 {
+            let creator_fee = transaction_fee
+                .checked_mul(bonding_curve.creator_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(bonding_curve.transaction_fee_bps as u64)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            
+            // Calculate platform fee as remainder to ensure exact sum
+            let platform_fee = transaction_fee
+                .checked_sub(creator_fee)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            
+            // Validate creator account for defense-in-depth
+            require!(
+                ctx.accounts.creator.key() == bonding_curve.authority,
+                TokenCreatorError::InsufficientAuthority
+            );
+            
+            // Transfer creator fee with treasury as signer
+            let creator_cpi = CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.treasury.to_account_info(),
+                    to: ctx.accounts.creator.to_account_info(),
+                },
+                signer_seeds,
+            );
+            anchor_lang::system_program::transfer(creator_cpi, creator_fee)?;
+            
+            // Validate and transfer platform fee
+            let expected_platform_treasury = DEGENIE_PLATFORM_TREASURY.parse::<Pubkey>()
+                .map_err(|_| TokenCreatorError::InvalidAmount)?;
+            require!(
+                ctx.accounts.platform_treasury.key() == expected_platform_treasury,
+                TokenCreatorError::InvalidAmount
+            );
+            
+            let platform_cpi = CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.treasury.to_account_info(),
+                    to: ctx.accounts.platform_treasury.to_account_info(),
+                },
+                signer_seeds,
+            );
+            anchor_lang::system_program::transfer(platform_cpi, platform_fee)?;
+            
+            // Treasury balance will be updated below with the net payout amount
+        }
 
         // Update bonding curve state
         bonding_curve.total_supply -= token_amount;
-        bonding_curve.current_price = bonding_curve.current_price.saturating_sub(
-            bonding_curve.price_increment * token_amount / 1000
-        );
+        bonding_curve.treasury_balance = bonding_curve.treasury_balance
+            .saturating_sub(sol_to_return_gross); // Subtract gross amount since all fees are paid from treasury
+        bonding_curve.total_volume += sol_to_return_gross;
+        
+        // Update price based on curve type
+        match bonding_curve.curve_type {
+            CurveType::Linear => {
+                let price_decrease = bonding_curve.price_increment
+                    .checked_mul(token_amount)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .saturating_sub(price_decrease);
+            },
+            CurveType::Exponential => {
+                bonding_curve.current_price = calculate_price_exponential(
+                    bonding_curve.initial_price,
+                    bonding_curve.total_supply,
+                    bonding_curve.growth_rate,
+                )?;
+            },
+            CurveType::Logarithmic => {
+                // Future implementation - use same safe arithmetic as Linear
+                let price_decrease = bonding_curve.price_increment
+                    .checked_mul(token_amount)
+                    .ok_or(TokenCreatorError::InvalidAmount)?
+                    .checked_div(1000)
+                    .ok_or(TokenCreatorError::InvalidAmount)?;
+                bonding_curve.current_price = bonding_curve.current_price
+                    .saturating_sub(price_decrease);
+            }
+        }
 
-        msg!("Sold {} tokens for {} SOL", token_amount, sol_to_return);
+        msg!("Sold {} tokens for {} SOL (fee: {} SOL)", 
+             token_amount, 
+             sol_to_return_gross as f64 / 1_000_000_000.0,
+             transaction_fee as f64 / 1_000_000_000.0);
+        Ok(())
+    }
+    
+    /// Graduate token to Raydium when market cap threshold is reached
+    pub fn graduate_to_raydium(
+        ctx: Context<GraduateToRaydium>,
+    ) -> Result<()> {
+        let bonding_curve = &mut ctx.accounts.bonding_curve;
+        
+        // Check if already graduated
+        require!(!bonding_curve.is_graduated, TokenCreatorError::AlreadyGraduated);
+        
+        // Calculate current market cap
+        let market_cap = bonding_curve.total_supply
+            .checked_mul(bonding_curve.current_price)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        // Check if graduation threshold reached
+        require!(
+            market_cap >= bonding_curve.graduation_threshold,
+            TokenCreatorError::GraduationThresholdNotMet
+        );
+        
+        // Calculate liquidity to migrate (85% of treasury)
+        let liquidity_amount = bonding_curve.treasury_balance
+            .checked_mul(85)
+            .ok_or(TokenCreatorError::InvalidAmount)?
+            .checked_div(100)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        // Mark as graduated
+        bonding_curve.is_graduated = true;
+        
+        // Update treasury balance to reflect liquidity migration
+        bonding_curve.treasury_balance = bonding_curve
+            .treasury_balance
+            .saturating_sub(liquidity_amount);
+        
+        msg!("🎓 TOKEN GRADUATED!");
+        msg!("Market cap: {} SOL", market_cap as f64 / 1_000_000_000.0);
+        msg!("Liquidity for Raydium: {} SOL", liquidity_amount as f64 / 1_000_000_000.0);
+        msg!("Remaining treasury: {} SOL", 
+             bonding_curve.treasury_balance as f64 / 1_000_000_000.0);
+        
+        // TODO: Actual Raydium pool creation will be handled by separate instruction
+        // This requires Raydium SDK integration
+        
+        Ok(())
+    }
+    
+    /// Create liquidity pool on Raydium (separate instruction after graduation)
+    pub fn create_raydium_pool(
+        ctx: Context<CreateRaydiumPool>,
+        base_amount: u64,    // Token amount
+        quote_amount: u64,   // SOL amount
+    ) -> Result<()> {
+        let bonding_curve = &ctx.accounts.bonding_curve;
+        
+        // Ensure token is graduated
+        require!(bonding_curve.is_graduated, TokenCreatorError::NotGraduated);
+        
+        // Ensure pool hasn't been created yet
+        require!(!ctx.accounts.pool_state.is_initialized, TokenCreatorError::PoolAlreadyCreated);
+        
+        msg!("Creating Raydium pool...");
+        msg!("Base (token) amount: {}", base_amount);
+        msg!("Quote (SOL) amount: {} SOL", quote_amount as f64 / 1_000_000_000.0);
+        
+        // TODO: Implement actual Raydium pool creation
+        // This will involve:
+        // 1. Creating pool account
+        // 2. Transferring tokens and SOL
+        // 3. Minting LP tokens
+        // 4. Burning LP tokens for permanence
+        
         Ok(())
     }
 }
@@ -436,6 +865,15 @@ pub struct InitializeBondingCurve<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + Treasury::INIT_SPACE,
+        seeds = [b"treasury", mint.key().as_ref()],
+        bump
+    )]
+    pub treasury: Account<'info, Treasury>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -457,9 +895,32 @@ pub struct BuyTokens<'info> {
     #[account(mut)]
     pub buyer_token_account: Account<'info, TokenAccount>,
     
-    /// CHECK: Treasury account for collecting SOL
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        space = 8 + UserTracker::INIT_SPACE,
+        seeds = [b"user_tracker", mint.key().as_ref(), buyer.key().as_ref()],
+        bump
+    )]
+    pub user_tracker: Account<'info, UserTracker>,
+    
+    #[account(
+        mut,
+        seeds = [b"treasury", mint.key().as_ref()],
+        bump = treasury.bump
+    )]
+    pub treasury: Account<'info, Treasury>,
+    
+    /// Creator account - must be the authority that initialized the curve
+    #[account(
+        mut,
+        constraint = creator.key() == bonding_curve.authority @ TokenCreatorError::InsufficientAuthority
+    )]
+    pub creator: UncheckedAccount<'info>,
+    
+    /// CHECK: Platform treasury for receiving platform fees
     #[account(mut)]
-    pub treasury: UncheckedAccount<'info>,
+    pub platform_treasury: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -483,12 +944,86 @@ pub struct SellTokens<'info> {
     #[account(mut)]
     pub seller_token_account: Account<'info, TokenAccount>,
     
-    /// CHECK: Treasury account for SOL storage
+    #[account(
+        mut,
+        seeds = [b"treasury", mint.key().as_ref()],
+        bump = treasury.bump
+    )]
+    pub treasury: Account<'info, Treasury>,
+    
+    /// Creator account - must be the authority that initialized the curve
+    #[account(
+        mut,
+        constraint = creator.key() == bonding_curve.authority @ TokenCreatorError::InsufficientAuthority
+    )]
+    pub creator: UncheckedAccount<'info>,
+    
+    /// CHECK: Platform treasury for receiving platform fees
     #[account(mut)]
-    pub treasury: UncheckedAccount<'info>,
+    pub platform_treasury: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct GraduateToRaydium<'info> {
+    #[account(
+        mut,
+        seeds = [b"bonding_curve", mint.key().as_ref()],
+        bump = bonding_curve.bump
+    )]
+    pub bonding_curve: Account<'info, BondingCurve>,
+    
+    pub mint: Account<'info, Mint>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CreateRaydiumPool<'info> {
+    #[account(
+        seeds = [b"bonding_curve", mint.key().as_ref()],
+        bump = bonding_curve.bump
+    )]
+    pub bonding_curve: Account<'info, BondingCurve>,
+    
+    pub mint: Account<'info, Mint>,
+    
+    /// CHECK: Pool state account to be initialized
+    #[account(mut)]
+    pub pool_state: UncheckedAccount<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"treasury", mint.key().as_ref()],
+        bump = treasury.bump
+    )]
+    pub treasury: Account<'info, Treasury>,
+    
+    /// CHECK: Token vault for the pool
+    #[account(mut)]
+    pub token_vault: UncheckedAccount<'info>,
+    
+    /// CHECK: SOL vault for the pool
+    #[account(mut)]
+    pub sol_vault: UncheckedAccount<'info>,
+    
+    /// CHECK: LP mint account
+    #[account(mut)]
+    pub lp_mint: UncheckedAccount<'info>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    
+    /// CHECK: Raydium AMM program
+    pub raydium_program: UncheckedAccount<'info>,
 }
 
 #[account]
@@ -501,35 +1036,247 @@ pub struct BondingCurve {
     pub max_supply: u64,
     pub authority: Pubkey,
     pub bump: u8,
+    // New fields for enhanced bonding curve
+    pub initial_price: u64,
+    pub curve_type: CurveType,
+    pub growth_rate: u64, // Basis points (10000 = 100%)
+    pub treasury_balance: u64,
+    pub total_volume: u64,
+    pub graduation_threshold: u64, // Fixed at 500 SOL for all tokens
+    pub is_graduated: bool,
+    pub creation_fee: u64,
+    pub transaction_fee_bps: u16, // Basis points (100 = 1%)
+    pub creator_fee_bps: u16,
+    pub platform_fee_bps: u16,
+    // Anti-bot protection fields
+    pub creation_timestamp: i64,
+    pub launch_protection_period: i64, // Duration in seconds (e.g., 3600 for 1 hour)
+    pub max_buy_during_protection: u64, // Max SOL per buy during protection period
+    pub transaction_cooldown: u64, // Minimum seconds between transactions per wallet
+    pub max_price_impact_bps: u16, // Maximum price impact in basis points (500 = 5%)
 }
 
-// Utility functions for bonding curve calculations
-pub fn calculate_tokens_for_sol(
-    sol_amount: u64,
-    current_price: u64,
-    _price_increment: u64,
+#[account]
+#[derive(InitSpace)]
+pub struct PoolState {
+    pub is_initialized: bool,
+    pub mint: Pubkey,
+    pub lp_mint: Pubkey,
+    pub token_vault: Pubkey,
+    pub sol_vault: Pubkey,
+    pub creation_timestamp: i64,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct UserTracker {
+    pub wallet: Pubkey,
+    pub mint: Pubkey,
+    pub last_transaction_time: i64,
+    pub total_bought_sol: u64,
+    pub transaction_count: u32,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Treasury {
+    pub authority: Pubkey,
+    pub total_collected: u64,
+    pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, InitSpace)]
+pub enum CurveType {
+    Linear,
+    Exponential,
+    Logarithmic,
+}
+
+// Enhanced bonding curve calculation functions
+pub fn calculate_price_exponential(
+    initial_price: u64,
+    total_supply: u64,
+    growth_rate: u64, // in basis points
 ) -> Result<u64> {
-    // Simple linear bonding curve: tokens = sol_amount / current_price
-    // In production, this would be more sophisticated
-    let tokens = sol_amount
+    // Exponential curve: price = initial_price * (1 + growth_rate/10000) ^ (supply / scale)
+    // Using fixed-point arithmetic to avoid floating point
+    
+    if total_supply == 0 {
+        return Ok(initial_price);
+    }
+    
+    // Scale factor to control growth rate
+    let scale_factor = 1000;
+    let supply_scaled = total_supply / scale_factor;
+    
+    // Calculate (1 + growth_rate/10000)^supply_scaled using fast exponentiation
+    let growth_multiplier = 10000u128 + growth_rate as u128; // e.g., 10100 for 1% growth
+    
+    // Use u128 for intermediate calculations to prevent overflow
+    let mut result = 10000u128; // Start with 1.0 in fixed point
+    let mut base = growth_multiplier;
+    let mut exp = supply_scaled;
+    
+    // Fast exponentiation by squaring - O(log n) instead of O(n)
+    while exp > 0 {
+        if exp & 1 == 1 {
+            // If exp is odd, multiply result by base
+            result = result
+                .checked_mul(base)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(10000)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+        }
+        
+        // Square the base
+        base = base
+            .checked_mul(base)
+            .ok_or(TokenCreatorError::InvalidAmount)?
+            .checked_div(10000)
+            .ok_or(TokenCreatorError::InvalidAmount)?;
+        
+        exp >>= 1; // Divide exp by 2
+    }
+    
+    // Apply result to initial price and convert back to u64
+    let price_u128 = (initial_price as u128)
+        .checked_mul(result)
+        .ok_or(TokenCreatorError::InvalidAmount)?
+        .checked_div(10000)
+        .ok_or(TokenCreatorError::InvalidAmount)?;
+    
+    // Ensure result fits in u64
+    if price_u128 > u64::MAX as u128 {
+        return Err(TokenCreatorError::InvalidAmount);
+    }
+    
+    Ok(price_u128 as u64)
+}
+
+pub fn calculate_tokens_for_sol_with_curve(
+    sol_amount: u64,
+    bonding_curve: &BondingCurve,
+) -> Result<u64> {
+    match bonding_curve.curve_type {
+        CurveType::Linear => {
+            // Linear: tokens = sol_amount / current_price
+            sol_amount
+                .checked_div(bonding_curve.current_price)
+                .ok_or(TokenCreatorError::InvalidAmount)
+        },
+        CurveType::Exponential => {
+            // For exponential curve, we need to integrate to find exact tokens
+            // Simplified: estimate tokens based on average price
+            let avg_price = bonding_curve.current_price;
+            sol_amount
+                .checked_div(avg_price)
+                .ok_or(TokenCreatorError::InvalidAmount)
+        },
+        CurveType::Logarithmic => {
+            // Logarithmic implementation (future)
+            sol_amount
+                .checked_div(bonding_curve.current_price)
+                .ok_or(TokenCreatorError::InvalidAmount)
+        }
+    }
+}
+
+pub fn calculate_sol_for_tokens_with_curve(
+    token_amount: u64,
+    bonding_curve: &BondingCurve,
+) -> Result<u64> {
+    match bonding_curve.curve_type {
+        CurveType::Linear => {
+            // Linear: sol = token_amount * current_price
+            token_amount
+                .checked_mul(bonding_curve.current_price)
+                .ok_or(TokenCreatorError::InvalidAmount)
+        },
+        CurveType::Exponential => {
+            // For selling, calculate price after tokens are removed
+            let new_supply = bonding_curve.total_supply.saturating_sub(token_amount);
+            let new_price = calculate_price_exponential(
+                bonding_curve.initial_price,
+                new_supply,
+                bonding_curve.growth_rate
+            )?;
+            
+            // Average price for the transaction
+            let avg_price = bonding_curve.current_price
+                .checked_add(new_price)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(2)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            token_amount
+                .checked_mul(avg_price)
+                .ok_or(TokenCreatorError::InvalidAmount)
+        },
+        CurveType::Logarithmic => {
+            // Logarithmic implementation (future)
+            token_amount
+                .checked_mul(bonding_curve.current_price)
+                .ok_or(TokenCreatorError::InvalidAmount)
+        }
+    }
+}
+
+/// Calculate price impact of a trade in basis points
+pub fn calculate_price_impact(
+    sol_amount: u64,
+    bonding_curve: &BondingCurve,
+) -> Result<u16> {
+    let current_price = bonding_curve.current_price;
+    
+    // Calculate tokens that would be bought
+    let tokens_to_buy = calculate_tokens_for_sol_with_curve(sol_amount, bonding_curve)?;
+    
+    // Calculate new price after the trade
+    let new_supply = bonding_curve.total_supply + tokens_to_buy;
+    let new_price = match bonding_curve.curve_type {
+        CurveType::Linear => {
+            let price_increase = bonding_curve.price_increment
+                .checked_mul(tokens_to_buy)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(1000)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            bonding_curve.current_price
+                .checked_add(price_increase)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+        },
+        CurveType::Exponential => {
+            calculate_price_exponential(
+                bonding_curve.initial_price,
+                new_supply,
+                bonding_curve.growth_rate,
+            )?
+        },
+        CurveType::Logarithmic => {
+            let price_increase = bonding_curve.price_increment
+                .checked_mul(tokens_to_buy)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(1000)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            bonding_curve.current_price
+                .checked_add(price_increase)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+        }
+    };
+    
+    // Calculate price impact as percentage in basis points
+    if new_price <= current_price {
+        return Ok(0); // No price impact or price decrease
+    }
+    
+    let price_increase = new_price - current_price;
+    let impact_bps = price_increase
+        .checked_mul(10000)
+        .ok_or(TokenCreatorError::InvalidAmount)?
         .checked_div(current_price)
         .ok_or(TokenCreatorError::InvalidAmount)?;
     
-    Ok(tokens)
-}
-
-pub fn calculate_sol_for_tokens(
-    token_amount: u64,
-    current_price: u64,
-    _price_increment: u64,
-) -> Result<u64> {
-    // Simple linear bonding curve: sol = token_amount * current_price
-    // In production, this would account for price curve more accurately
-    let sol = token_amount
-        .checked_mul(current_price)
-        .ok_or(TokenCreatorError::InvalidAmount)?;
-    
-    Ok(sol)
+    // Cap at u16::MAX to prevent overflow
+    Ok(std::cmp::min(impact_bps, u16::MAX as u64) as u16)
 }
 
 #[error_code]
@@ -554,4 +1301,18 @@ pub enum TokenCreatorError {
     TokenSymbolTooLong,
     #[msg("Exceeds maximum supply")]
     ExceedsMaxSupply,
+    #[msg("Token has already graduated to DEX")]
+    AlreadyGraduated,
+    #[msg("Graduation threshold not met")]
+    GraduationThresholdNotMet,
+    #[msg("Token has not graduated yet")]
+    NotGraduated,
+    #[msg("Liquidity pool already created")]
+    PoolAlreadyCreated,
+    #[msg("Transaction cooldown period not elapsed")]
+    TransactionCooldown,
+    #[msg("Purchase exceeds protection period limit")]
+    ExceedsProtectionLimit,
+    #[msg("Price impact exceeds maximum allowed")]
+    ExceedsPriceImpactLimit,
 }

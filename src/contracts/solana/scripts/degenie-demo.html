@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧞‍♂️ DeGenie Platform Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .button-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        }
+
+        .button-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .button-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .input-group {
+            margin: 15px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .token-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 5px solid #3498db;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .comparison-table th, .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .comparison-table th {
+            background: #3498db;
+            color: white;
+        }
+
+        .comparison-table .winner {
+            background: #d5f4e6;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            transition: width 0.3s ease;
+        }
+
+        .log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+        .warning { color: #f39c12; }
+        .info { color: #3498db; }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-container {
+            height: 200px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            display: flex;
+            align-items: end;
+            gap: 10px;
+        }
+
+        .price-bar {
+            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
+            border-radius: 4px 4px 0 0;
+            min-height: 20px;
+            flex: 1;
+            transition: height 0.3s ease;
+        }
+
+        .anti-bot-demo {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .protection-active {
+            background: #d1ecf1;
+            border: 2px solid #bee5eb;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧞‍♂️ DeGenie Platform Demo</h1>
+            <p>Interactive demonstration of the revolutionary token creation platform</p>
+            <p><strong>Platform Treasury:</strong> 3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Token Creation Section -->
+            <div class="section">
+                <h2>🪙 Create Token</h2>
+                <div class="input-group">
+                    <label>Token Name:</label>
+                    <input type="text" id="tokenName" placeholder="My Amazing Token" value="DemoToken">
+                </div>
+                <div class="input-group">
+                    <label>Symbol:</label>
+                    <input type="text" id="tokenSymbol" placeholder="DEMO" value="DEMO">
+                </div>
+                <div class="input-group">
+                    <label>Description:</label>
+                    <input type="text" id="tokenDescription" placeholder="Token description" value="A revolutionary meme token">
+                </div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <strong>💡 How token creation works:</strong>
+                    <ul style="margin-top: 10px;">
+                        <li>✅ <strong>FREE</strong> to create (just 0.02 SOL fee)</li>
+                        <li>📊 Initial market cap starts at ~$10 (very small)</li>
+                        <li>🪙 No tokens automatically given to creator</li>
+                        <li>💰 Creator must BUY tokens like everyone else</li>
+                        <li>📈 Price increases as supply increases (bonding curve)</li>
+                    </ul>
+                </div>
+                
+                <button class="button button-success" onclick="createToken()">🚀 Create Token (FREE)</button>
+                
+                <div style="margin-top: 15px;">
+                    <label>
+                        <input type="checkbox" id="disableProtection"> 
+                        🤖 Disable Anti-Bot Protection (NOT RECOMMENDED)
+                    </label>
+                    <p style="font-size: 0.9em; color: #e74c3c; margin-top: 5px;">
+                        ⚠️ Warning: Disabling protection makes your token vulnerable to bot attacks and price manipulation
+                    </p>
+                </div>
+                
+                <div id="tokenInfo" class="token-info" style="display: none;">
+                    <h3>Token Created Successfully! ✅</h3>
+                    <p><strong>Mint:</strong> <span id="mintAddress"></span></p>
+                    <p><strong>Initial Price:</strong> <span id="initialPrice"></span></p>
+                    <p><strong>Protection Period:</strong> 1 hour (max 1 SOL per buy)</p>
+                    <p><strong>Graduation Threshold:</strong> 500 SOL market cap</p>
+                </div>
+            </div>
+
+            <!-- Market Stats Section -->
+            <div class="section">
+                <h2>📊 Market Statistics</h2>
+                <div class="stat-card">
+                    <div class="stat-value" id="currentPrice">0.000001</div>
+                    <div class="stat-label">SOL per Token</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="marketCap">$0.00</div>
+                    <div class="stat-label">Market Cap (USD)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="marketCapSOL">0.00</div>
+                    <div class="stat-label">Market Cap (SOL)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSupply">0</div>
+                    <div class="stat-label">Total Supply</div>
+                </div>
+                
+                <div>
+                    <label>Graduation Progress:</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="graduationProgress" style="width: 0%"></div>
+                    </div>
+                    <span id="graduationText">0% to graduation</span>
+                </div>
+            </div>
+
+            <!-- Trading Section -->
+            <div class="section">
+                <h2>💸 Trading</h2>
+                <div class="input-group">
+                    <label>Select User:</label>
+                    <select id="userSelect">
+                        <option value="creator">Token Creator (10.00 SOL)</option>
+                        <option value="alice">Alice - Early Buyer (5.00 SOL)</option>
+                        <option value="bob">Bob - Whale (50.00 SOL)</option>
+                        <option value="charlie">Charlie - Bot Attempt (20.00 SOL)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>SOL Amount:</label>
+                    <input type="number" id="solAmount" placeholder="0.1" step="0.01" min="0.01" value="0.1">
+                </div>
+                <button class="button button-info" onclick="buyTokens()">💰 Buy Tokens</button>
+                
+                <div class="input-group" style="margin-top: 20px;">
+                    <label>Tokens to Sell:</label>
+                    <input type="number" id="sellAmount" placeholder="1000" step="1" min="1">
+                </div>
+                <button class="button button-warning" onclick="sellTokens()">💸 Sell Tokens</button>
+            </div>
+
+            <!-- Auto Trading Simulation -->
+            <div class="section">
+                <h2>🤖 Automated Trading Demo</h2>
+                <p>Watch realistic market activity with multiple traders</p>
+                
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <strong>🎬 Simulation includes:</strong>
+                    <ul style="margin-top: 10px;">
+                        <li>👥 Multiple users trading simultaneously</li>
+                        <li>📈 Real bonding curve price changes</li>
+                        <li>💰 Fee distribution in action</li>
+                        <li>📊 Live market cap updates</li>
+                        <li>🎯 Progression toward graduation</li>
+                    </ul>
+                </div>
+                
+                <button class="button button-info" onclick="startTradingSimulation()">🚀 Start Trading Simulation</button>
+                <button class="button button-warning" onclick="stopTradingSimulation()">⏹️ Stop Simulation</button>
+                
+                <div id="simulationStatus" style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 8px; display: none;">
+                    <strong>🎬 Simulation Status:</strong>
+                    <p id="simulationMessage">Ready to start...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="simulationProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anti-Bot Protection Section -->
+            <div class="section">
+                <h2>🛡️ Anti-Bot Protection</h2>
+                <div class="anti-bot-demo">
+                    <h3>Multi-Layer Protection System</h3>
+                    <ul>
+                        <li><strong>Rate Limiting:</strong> 30 second cooldown</li>
+                        <li><strong>Protection Period:</strong> 1 SOL max during first hour</li>
+                        <li><strong>Price Impact:</strong> 5% maximum impact limit</li>
+                    </ul>
+                </div>
+                
+                <button class="button button-warning" onclick="testAntiBot()">🤖 Test Bot Protection</button>
+                <button class="button button-warning" onclick="testProtectionPeriod()">🛡️ Test Protection Period</button>
+                <button class="button button-warning" onclick="testPriceImpact()">📈 Test Price Impact</button>
+                
+                <div id="protectionStatus" class="protection-active" style="display: none;">
+                    <strong>🛡️ Protection Active!</strong>
+                    <p id="protectionMessage"></p>
+                </div>
+            </div>
+
+            <!-- Price Chart -->
+            <div class="section full-width">
+                <h2>📈 Price History</h2>
+                <div class="chart-container" id="priceChart">
+                    <div class="price-bar" style="height: 30px;" title="Initial Price"></div>
+                </div>
+                <p style="text-align: center; color: #7f8c8d; margin-top: 10px;">
+                    Live price visualization - bars show price changes over time
+                </p>
+            </div>
+
+            <!-- Graduation Simulation -->
+            <div class="section">
+                <h2>🎓 Graduation Simulation</h2>
+                <p>Simulate token graduation to Raydium DEX at $69k market cap</p>
+                <button class="button button-success" onclick="simulateGraduation()">🎓 Force Graduation</button>
+                
+                <div id="graduationInfo" style="display: none;">
+                    <h3>🎉 Token Graduated!</h3>
+                    <div class="stat-card">
+                        <div class="stat-value" id="liquidityAmount">0</div>
+                        <div class="stat-label">SOL to DEX (85%)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="platformFee">0</div>
+                        <div class="stat-label">Platform Fee (10%)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="creatorBonus">0</div>
+                        <div class="stat-label">Creator Bonus (5%)</div>
+                    </div>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <strong>🔥 LP Token Burning Explained:</strong>
+                        <ul style="margin-top: 10px;">
+                            <li><strong>What are LP tokens?</strong> Liquidity Provider tokens represent ownership of the DEX pool</li>
+                            <li><strong>Normal DEX:</strong> LP tokens can be used to withdraw liquidity (rug pull risk)</li>
+                            <li><strong>DeGenie approach:</strong> 100% of LP tokens are BURNED = permanent liquidity</li>
+                            <li><strong>Investor benefit:</strong> Impossible to remove liquidity, permanent trading</li>
+                            <li><strong>vs pump.fun:</strong> They keep LP tokens (less secure for investors)</li>
+                        </ul>
+                    </div>
+                    <p><strong>🔥 LP Tokens:</strong> 100% BURNED (permanent liquidity)</p>
+                </div>
+            </div>
+
+            <!-- Platform Analytics -->
+            <div class="section">
+                <h2>📊 Platform Analytics</h2>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalVolume">0.00</div>
+                    <div class="stat-label">Total Volume (SOL)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTransactions">0</div>
+                    <div class="stat-label">Total Transactions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="platformRevenue">0.0000</div>
+                    <div class="stat-label">Platform Revenue (SOL)</div>
+                </div>
+                <button class="button button-info" onclick="showUserBalances()">👥 Show User Balances</button>
+            </div>
+
+            <!-- Comparison with pump.fun -->
+            <div class="section full-width">
+                <h2>🆚 DeGenie vs pump.fun Comparison</h2>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>pump.fun</th>
+                            <th>DeGenie</th>
+                            <th>Winner</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Creator Rewards (Trading)</strong></td>
+                            <td>0% during trading</td>
+                            <td class="winner">0.5% of all trades</td>
+                            <td class="winner">🏆 DeGenie</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Graduation Bonus</strong></td>
+                            <td>0.5 SOL fixed</td>
+                            <td class="winner">5% of treasury (~3,450 SOL)</td>
+                            <td class="winner">🏆 DeGenie (6900x better!)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Anti-Bot Protection</strong></td>
+                            <td>Basic protection</td>
+                            <td class="winner">Multi-layer (rate limiting + protection periods + price impact)</td>
+                            <td class="winner">🏆 DeGenie</td>
+                        </tr>
+                        <tr>
+                            <td><strong>LP Token Management</strong></td>
+                            <td>Keeps LP tokens</td>
+                            <td class="winner">Burns 100% LP tokens (permanent liquidity)</td>
+                            <td class="winner">🏆 DeGenie</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Graduation Threshold</strong></td>
+                            <td>$69,000 market cap</td>
+                            <td>$69,000 market cap</td>
+                            <td>🤝 Equal</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Trading Fees</strong></td>
+                            <td>1% (all to platform)</td>
+                            <td class="winner">1% (0.5% creator + 0.5% platform)</td>
+                            <td class="winner">🏆 DeGenie</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Graduation Rate</strong></td>
+                            <td>1.4% (very low)</td>
+                            <td class="winner">Expected higher due to better incentives</td>
+                            <td class="winner">🏆 DeGenie</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="background: #d5f4e6; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                    <h3>🔥 Conclusion</h3>
+                    <p><strong>DeGenie's 85/10/5 liquidity distribution is EXCELLENT!</strong></p>
+                    <ul>
+                        <li>✅ 85% to DEX ensures deep liquidity</li>
+                        <li>✅ 10% platform fee for sustainability</li>
+                        <li>✅ 5% creator bonus incentivizes quality projects</li>
+                        <li>✅ LP token burning provides permanent liquidity</li>
+                        <li>✅ Much better creator rewards than pump.fun</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="section full-width">
+                <h2>📝 Activity Log</h2>
+                <div class="log" id="activityLog">
+                    <div class="info">🧞‍♂️ DeGenie Platform Demo initialized</div>
+                    <div class="info">💰 Platform Treasury: 3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF</div>
+                    <div class="info">🛡️ Anti-bot protection: ACTIVE</div>
+                    <div class="info">Ready to create tokens and test trading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Demo state
+        let demoState = {
+            LAMPORTS_PER_SOL: 1_000_000_000,
+            PLATFORM_TREASURY: '3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF',
+            currentToken: null,
+            users: {
+                creator: { name: 'Token Creator', balance: 10_000_000_000, tokens: {} },
+                alice: { name: 'Alice (Early Buyer)', balance: 5_000_000_000, tokens: {} },
+                bob: { name: 'Bob (Whale)', balance: 50_000_000_000, tokens: {} },
+                charlie: { name: 'Charlie (Bot Attempt)', balance: 20_000_000_000, tokens: {} }
+            },
+            totalVolume: 0,
+            totalTransactions: 0,
+            platformRevenue: 0,
+            priceHistory: [],
+            lastTransactionTimes: {},
+            isProtectionPeriod: true,
+            protectionEnabled: true,
+            simulationRunning: false,
+            simulationInterval: null
+        };
+
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('activityLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function createToken() {
+            const name = document.getElementById('tokenName').value || 'DemoToken';
+            const symbol = document.getElementById('tokenSymbol').value || 'DEMO';
+            const description = document.getElementById('tokenDescription').value || 'Demo token';
+            const protectionDisabled = document.getElementById('disableProtection').checked;
+
+            const token = {
+                id: Date.now().toString(),
+                mintAddress: generateMockAddress(),
+                name,
+                symbol,
+                description,
+                creator: 'creator',
+                currentPrice: 1000, // 0.000001 SOL - very small starting price
+                totalSupply: 100000, // Small initial supply to create ~$10 market cap
+                maxSupply: 1_000_000_000,
+                treasuryBalance: 0,
+                totalVolume: 0,
+                // Fixed SOL threshold - simple and predictable
+                graduationThreshold: 500 * demoState.LAMPORTS_PER_SOL, // 500 SOL to graduate
+                isGraduated: false,
+                transactionCount: 0,
+                creationTime: Date.now(),
+                protectionPeriodEnd: Date.now() + (60 * 60 * 1000), // 1 hour
+                protectionEnabled: !protectionDisabled
+            };
+
+            demoState.currentToken = token;
+            demoState.isProtectionPeriod = true;
+            demoState.protectionEnabled = !protectionDisabled;
+
+            // Charge creation fee (very small)
+            demoState.users.creator.balance -= 0.02 * demoState.LAMPORTS_PER_SOL;
+
+            // Update UI
+            document.getElementById('tokenInfo').style.display = 'block';
+            document.getElementById('mintAddress').textContent = token.mintAddress.substring(0, 8) + '...';
+            document.getElementById('initialPrice').textContent = (token.currentPrice / demoState.LAMPORTS_PER_SOL).toFixed(6) + ' SOL';
+
+            updateMarketStats();
+            updatePriceChart();
+
+            log(`🪙 Token created: ${name} (${symbol})`, 'success');
+            log(`📍 Mint: ${token.mintAddress.substring(0, 8)}...`, 'info');
+            log(`💳 Creation fee: 0.02 SOL charged to creator`, 'warning');
+            log(`📊 Initial market cap: ~$${((token.totalSupply * token.currentPrice) / demoState.LAMPORTS_PER_SOL * 100).toFixed(2)}`, 'info');
+            
+            if (protectionDisabled) {
+                log(`⚠️ Anti-bot protection DISABLED - token vulnerable to attacks!`, 'error');
+            } else {
+                log(`🛡️ Anti-bot protection ENABLED - token protected`, 'success');
+            }
+        }
+
+        function buyTokens() {
+            if (!demoState.currentToken) {
+                log('❌ No token created yet. Create a token first.', 'error');
+                return;
+            }
+
+            const userId = document.getElementById('userSelect').value;
+            const solAmountInput = document.getElementById('solAmount').value;
+            // Convert SOL to lamports using integer math (multiply by 1e9)
+            const solAmount = Math.floor(Number(solAmountInput) * demoState.LAMPORTS_PER_SOL);
+            const user = demoState.users[userId];
+            const token = demoState.currentToken;
+
+            if (solAmount <= 0 || solAmount > user.balance) {
+                log('❌ Invalid amount or insufficient balance', 'error');
+                return;
+            }
+
+            try {
+                // Check anti-bot protections
+                checkAntiBotProtections(userId, solAmount);
+
+                // Calculate fees and tokens
+                const transactionFee = Math.floor(solAmount / 100); // 1% fee
+                const solAfterFee = solAmount - transactionFee;
+                const tokensToMint = Math.floor(solAfterFee / token.currentPrice);
+
+                if (tokensToMint === 0) {
+                    throw new Error('Amount too small - would receive 0 tokens');
+                }
+
+                // Process transaction
+                user.balance -= solAmount;
+                user.tokens[token.id] = (user.tokens[token.id] || 0) + tokensToMint;
+
+                // Update token state
+                token.totalSupply += tokensToMint;
+                token.treasuryBalance += solAfterFee;
+                token.totalVolume += solAmount;
+                token.transactionCount++;
+
+                // Split fees
+                const creatorFee = Math.floor(transactionFee / 2);
+                const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
+                demoState.users.creator.balance += creatorFee;
+                
+                // Update price (1% growth rate)
+                token.currentPrice = Math.floor(1000 * Math.pow(1.01, token.totalSupply / 1000));
+
+                // Update global stats
+                demoState.totalVolume += solAmount;
+                demoState.totalTransactions++;
+                demoState.platformRevenue += platformFee;
+                demoState.lastTransactionTimes[userId] = Date.now();
+
+                // Add to price history
+                demoState.priceHistory.push(token.currentPrice);
+                if (demoState.priceHistory.length > 20) {
+                    demoState.priceHistory.shift();
+                }
+
+                // Update UI
+                updateMarketStats();
+                updatePriceChart();
+                updateUserBalances();
+
+                log(`✅ ${user.name} bought ${tokensToMint.toLocaleString()} tokens for ${solAmountInput} SOL`, 'success');
+                log(`💰 New price: ${(token.currentPrice / demoState.LAMPORTS_PER_SOL).toFixed(6)} SOL per token`, 'info');
+                log(`💸 Fees: Creator ${(creatorFee / demoState.LAMPORTS_PER_SOL).toFixed(4)} SOL, Platform ${(platformFee / demoState.LAMPORTS_PER_SOL).toFixed(4)} SOL`, 'info');
+
+                // Check graduation
+                const marketCap = token.totalSupply * token.currentPrice;
+                if (marketCap >= token.graduationThreshold && !token.isGraduated) {
+                    log('🎓 GRADUATION TRIGGERED! Token ready for DEX migration!', 'success');
+                }
+
+            } catch (error) {
+                log(`❌ Transaction failed: ${error.message}`, 'error');
+                if (error.message.includes('protection') || error.message.includes('cooldown') || error.message.includes('impact')) {
+                    showProtectionStatus(error.message);
+                }
+            }
+        }
+
+        function sellTokens() {
+            if (!demoState.currentToken) {
+                log('❌ No token created yet. Create a token first.', 'error');
+                return;
+            }
+
+            const userId = document.getElementById('userSelect').value;
+            const tokenAmount = parseInt(document.getElementById('sellAmount').value);
+            const user = demoState.users[userId];
+            const token = demoState.currentToken;
+
+            if (!tokenAmount || tokenAmount <= 0) {
+                log('❌ Invalid token amount', 'error');
+                return;
+            }
+
+            if (!user.tokens[token.id] || user.tokens[token.id] < tokenAmount) {
+                log('❌ Insufficient tokens to sell', 'error');
+                return;
+            }
+
+            // Calculate SOL to return (all values in lamports)
+            const solToReturn = tokenAmount * token.currentPrice;
+            const transactionFee = Math.floor(solToReturn / 100); // 1% fee using integer division
+            const solAfterFee = solToReturn - transactionFee;
+
+            // Process transaction
+            user.tokens[token.id] -= tokenAmount;
+            user.balance += solAfterFee;
+
+            // Update token state
+            token.totalSupply -= tokenAmount;
+            token.treasuryBalance -= solToReturn;
+            token.transactionCount++;
+
+            // Split fees
+            const creatorFee = Math.floor(transactionFee / 2);
+            const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
+            demoState.users.creator.balance += creatorFee;
+
+            // Update price (decrease)
+            token.currentPrice = Math.floor(1000 * Math.pow(1.01, token.totalSupply / 1000));
+
+            // Update global stats
+            demoState.totalVolume += solToReturn;
+            demoState.totalTransactions++;
+            demoState.platformRevenue += platformFee;
+
+            // Add to price history
+            demoState.priceHistory.push(token.currentPrice);
+            if (demoState.priceHistory.length > 20) {
+                demoState.priceHistory.shift();
+            }
+
+            // Update UI
+            updateMarketStats();
+            updatePriceChart();
+            updateUserBalances();
+
+            log(`✅ ${user.name} sold ${tokenAmount.toLocaleString()} tokens for ${(solAfterFee / demoState.LAMPORTS_PER_SOL).toFixed(4)} SOL`, 'success');
+            log(`📉 New price: ${(token.currentPrice / demoState.LAMPORTS_PER_SOL).toFixed(6)} SOL per token`, 'info');
+        }
+
+        function checkAntiBotProtections(userId, solAmount) {
+            // Skip protection if disabled
+            if (!demoState.protectionEnabled || !demoState.currentToken.protectionEnabled) {
+                return;
+            }
+
+            const now = Date.now();
+            
+            // Rate limiting (30 second cooldown)
+            if (demoState.lastTransactionTimes[userId]) {
+                const timeSinceLast = now - demoState.lastTransactionTimes[userId];
+                if (timeSinceLast < 30000) {
+                    throw new Error('Transaction cooldown: 30 seconds between purchases');
+                }
+            }
+
+            // Protection period limits
+            if (demoState.isProtectionPeriod && solAmount > 1 * demoState.LAMPORTS_PER_SOL) {
+                throw new Error('Exceeds protection period limit (max 1 SOL during first hour)');
+            }
+
+            // Price impact check
+            if (demoState.currentToken.totalSupply > 0) {
+                const currentMarketCap = demoState.currentToken.totalSupply * demoState.currentToken.currentPrice;
+                const impact = (solAmount / currentMarketCap) * 100;
+                if (impact > 5) {
+                    throw new Error('Price impact too high (>5%)');
+                }
+            }
+        }
+
+        function startTradingSimulation() {
+            if (!demoState.currentToken) {
+                log('❌ Create a token first to start simulation', 'error');
+                return;
+            }
+
+            if (demoState.simulationRunning) {
+                log('⚠️ Simulation already running', 'warning');
+                return;
+            }
+
+            demoState.simulationRunning = true;
+            document.getElementById('simulationStatus').style.display = 'block';
+            document.getElementById('simulationMessage').textContent = 'Starting automated trading...';
+
+            log('🎬 Starting automated trading simulation', 'info');
+            
+            const users = ['alice', 'bob', 'creator', 'charlie'];
+            let step = 0;
+            const maxSteps = 50;
+
+            demoState.simulationInterval = setInterval(() => {
+                if (!demoState.simulationRunning || step >= maxSteps) {
+                    stopTradingSimulation();
+                    return;
+                }
+
+                // Random user and action
+                const user = users[Math.floor(Math.random() * users.length)];
+                const isBuy = Math.random() > 0.3; // 70% buy, 30% sell
+                
+                try {
+                    if (isBuy) {
+                        // Random buy amount (0.01 to 2 SOL)
+                        const amount = (Math.random() * 1.99 + 0.01) * demoState.LAMPORTS_PER_SOL;
+                        
+                        // Temporarily disable protection for simulation
+                        const originalProtection = demoState.protectionEnabled;
+                        demoState.protectionEnabled = false;
+                        
+                        simulateBuy(user, amount);
+                        
+                        // Restore protection
+                        demoState.protectionEnabled = originalProtection;
+                        
+                    } else {
+                        // Random sell (10% to 50% of holdings)
+                        const userObj = demoState.users[user];
+                        const tokens = userObj.tokens[demoState.currentToken.id] || 0;
+                        if (tokens > 1000) {
+                            const sellAmount = Math.floor(tokens * (10 + Math.floor(Math.random() * 40)) / 100); // 10-50% sell
+                            simulateSell(user, sellAmount);
+                        }
+                    }
+                } catch (error) {
+                    // Log errors but continue simulation
+                    if (step % 10 === 0) { // Only log every 10th error to avoid spam
+                        log(`⚠️ Simulation error: ${error.message}`, 'warning');
+                    }
+                }
+
+                step++;
+                const progress = (step / maxSteps) * 100;
+                document.getElementById('simulationProgress').style.width = progress + '%';
+                document.getElementById('simulationMessage').textContent = 
+                    `Step ${step}/${maxSteps} - Market cap: $${((demoState.currentToken.totalSupply * demoState.currentToken.currentPrice) / demoState.LAMPORTS_PER_SOL * 100).toFixed(2)}`;
+
+            }, 500); // Execute every 500ms
+        }
+
+        function stopTradingSimulation() {
+            demoState.simulationRunning = false;
+            if (demoState.simulationInterval) {
+                clearInterval(demoState.simulationInterval);
+                demoState.simulationInterval = null;
+            }
+
+            document.getElementById('simulationMessage').textContent = 'Simulation completed';
+            log('🎬 Trading simulation stopped', 'info');
+            
+            setTimeout(() => {
+                document.getElementById('simulationStatus').style.display = 'none';
+            }, 3000);
+        }
+
+        function simulateBuy(userId, solAmount) {
+            const user = demoState.users[userId];
+            const token = demoState.currentToken;
+
+            if (solAmount > user.balance) {
+                throw new Error('Insufficient balance');
+            }
+
+            // Calculate fees and tokens
+            const transactionFee = Math.floor(solAmount / 100); // 1% fee
+            const solAfterFee = solAmount - transactionFee;
+            const tokensToMint = Math.floor(solAfterFee / token.currentPrice);
+
+            if (tokensToMint <= 0) {
+                throw new Error('Amount too small');
+            }
+
+            // Process transaction
+            user.balance -= solAmount;
+            user.tokens[token.id] = (user.tokens[token.id] || 0) + tokensToMint;
+
+            // Update token state
+            token.totalSupply += tokensToMint;
+            token.treasuryBalance += solAfterFee;
+            token.totalVolume += solAmount;
+            token.transactionCount++;
+
+            // Split fees
+            const creatorFee = Math.floor(transactionFee / 2);
+            const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
+            demoState.users.creator.balance += creatorFee;
+            
+            // Update price (1% growth rate)
+            token.currentPrice = Math.floor(1000 * Math.pow(1.01, token.totalSupply / 1000));
+
+            // Update global stats
+            demoState.totalVolume += solAmount;
+            demoState.totalTransactions++;
+            demoState.platformRevenue += platformFee;
+
+            // Add to price history
+            demoState.priceHistory.push(token.currentPrice);
+            if (demoState.priceHistory.length > 50) {
+                demoState.priceHistory.shift();
+            }
+
+            // Update UI
+            updateMarketStats();
+            updatePriceChart();
+        }
+
+        function simulateSell(userId, tokenAmount) {
+            const user = demoState.users[userId];
+            const token = demoState.currentToken;
+
+            if (!user.tokens[token.id] || user.tokens[token.id] < tokenAmount) {
+                throw new Error('Insufficient tokens');
+            }
+
+            // Calculate SOL to return (all values in lamports)
+            const solToReturn = tokenAmount * token.currentPrice;
+            const transactionFee = Math.floor(solToReturn / 100); // 1% fee using integer division
+            const solAfterFee = solToReturn - transactionFee;
+
+            // Process transaction
+            user.tokens[token.id] -= tokenAmount;
+            user.balance += solAfterFee;
+
+            // Update token state
+            token.totalSupply -= tokenAmount;
+            token.treasuryBalance -= solToReturn;
+            token.transactionCount++;
+
+            // Split fees
+            const creatorFee = Math.floor(transactionFee / 2);
+            const platformFee = transactionFee - creatorFee; // Ensure no rounding loss
+            demoState.users.creator.balance += creatorFee;
+
+            // Update price
+            token.currentPrice = Math.floor(1000 * Math.pow(1.01, token.totalSupply / 1000));
+
+            // Update global stats
+            demoState.totalVolume += solToReturn;
+            demoState.totalTransactions++;
+            demoState.platformRevenue += platformFee;
+
+            // Add to price history
+            demoState.priceHistory.push(token.currentPrice);
+            if (demoState.priceHistory.length > 50) {
+                demoState.priceHistory.shift();
+            }
+
+            // Update UI
+            updateMarketStats();
+            updatePriceChart();
+        }
+
+        function testAntiBot() {
+            log('🤖 Testing rapid-fire transactions...', 'warning');
+            
+            // Simulate rapid transactions
+            demoState.lastTransactionTimes['charlie'] = Date.now();
+            
+            setTimeout(() => {
+                try {
+                    checkAntiBotProtections('charlie', 0.1 * demoState.LAMPORTS_PER_SOL);
+                    log('❌ Rate limiting failed - transactions should be blocked', 'error');
+                } catch (error) {
+                    log('✅ Rate limiting working: ' + error.message, 'success');
+                    showProtectionStatus('Rate limiting active - 30 second cooldown enforced');
+                }
+            }, 1000);
+        }
+
+        function testProtectionPeriod() {
+            log('🛡️ Testing protection period limits...', 'warning');
+            
+            try {
+                checkAntiBotProtections('charlie', 5 * demoState.LAMPORTS_PER_SOL);
+                log('❌ Protection period failed - large purchase should be blocked', 'error');
+            } catch (error) {
+                log('✅ Protection period working: ' + error.message, 'success');
+                showProtectionStatus('Protection period active - max 1 SOL per transaction');
+            }
+        }
+
+        function testPriceImpact() {
+            if (!demoState.currentToken || demoState.currentToken.totalSupply === 0) {
+                log('❌ Create a token and make some purchases first to test price impact', 'error');
+                return;
+            }
+
+            log('📈 Testing price impact limits...', 'warning');
+            
+            const largeAmount = 20 * demoState.LAMPORTS_PER_SOL;
+            try {
+                checkAntiBotProtections('charlie', largeAmount);
+                log('❌ Price impact protection failed - whale purchase should be blocked', 'error');
+            } catch (error) {
+                log('✅ Price impact protection working: ' + error.message, 'success');
+                showProtectionStatus('Price impact protection active - max 5% price impact allowed');
+            }
+        }
+
+        function showProtectionStatus(message) {
+            const statusDiv = document.getElementById('protectionStatus');
+            const messageP = document.getElementById('protectionMessage');
+            messageP.textContent = message;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function simulateGraduation() {
+            if (!demoState.currentToken) {
+                log('❌ No token created yet. Create a token first.', 'error');
+                return;
+            }
+
+            const token = demoState.currentToken;
+            
+            if (token.isGraduated) {
+                log('❌ Token has already graduated.', 'error');
+                return;
+            }
+
+            // Force graduation at 500 SOL (fixed threshold)
+            const GRADUATION_SOL = 500;
+            token.totalSupply = 1_000_000;
+            token.currentPrice = GRADUATION_SOL;
+            token.treasuryBalance = GRADUATION_SOL * demoState.LAMPORTS_PER_SOL;
+            token.isGraduated = true;
+
+            // Calculate distribution
+            const liquidityAmount = Math.floor(token.treasuryBalance * 85 / 100); // 85%
+            const platformFee = Math.floor(token.treasuryBalance * 10 / 100); // 10%
+            const creatorBonus = token.treasuryBalance - liquidityAmount - platformFee; // 5% (remainder)
+
+            // Award creator bonus
+            demoState.users.creator.balance += creatorBonus;
+
+            // Update UI
+            document.getElementById('graduationInfo').style.display = 'block';
+            document.getElementById('liquidityAmount').textContent = (liquidityAmount / demoState.LAMPORTS_PER_SOL).toFixed(2);
+            document.getElementById('platformFee').textContent = (platformFee / demoState.LAMPORTS_PER_SOL).toFixed(2);
+            document.getElementById('creatorBonus').textContent = (creatorBonus / demoState.LAMPORTS_PER_SOL).toFixed(2);
+
+            updateMarketStats();
+            updateUserBalances();
+
+            log('🎓 TOKEN GRADUATED!', 'success');
+            log(`💧 Liquidity to DEX: ${(liquidityAmount / demoState.LAMPORTS_PER_SOL).toFixed(2)} SOL (85%)`, 'success');
+            log(`🏢 Platform fee: ${(platformFee / demoState.LAMPORTS_PER_SOL).toFixed(2)} SOL (10%)`, 'success');
+            log(`👑 Creator bonus: ${(creatorBonus / demoState.LAMPORTS_PER_SOL).toFixed(2)} SOL (5%)`, 'success');
+            log('🔥 LP Tokens: 100% BURNED (permanent liquidity)', 'success');
+            log(`💰 Creator reward vs pump.fun: ${((creatorBonus / demoState.LAMPORTS_PER_SOL) / 0.5).toFixed(0)}x better!`, 'success');
+        }
+
+        function showUserBalances() {
+            log('👥 Current User Balances:', 'info');
+            for (const [id, user] of Object.entries(demoState.users)) {
+                const balanceSOL = (user.balance / demoState.LAMPORTS_PER_SOL).toFixed(4);
+                const tokens = demoState.currentToken && user.tokens[demoState.currentToken.id] 
+                    ? user.tokens[demoState.currentToken.id].toLocaleString() 
+                    : '0';
+                log(`  ${user.name}: ${balanceSOL} SOL, ${tokens} tokens`, 'info');
+            }
+        }
+
+        function updateMarketStats() {
+            if (!demoState.currentToken) return;
+
+            const token = demoState.currentToken;
+            const currentPrice = token.currentPrice / demoState.LAMPORTS_PER_SOL;
+            // Market cap in SOL (more relevant for traders)
+            const marketCapSOL = (token.totalSupply * token.currentPrice) / demoState.LAMPORTS_PER_SOL;
+            // Also show USD for reference (using approximate current price)
+            const SOL_PRICE_USD = 145; // For display only
+            const marketCap = marketCapSOL * SOL_PRICE_USD;
+            const graduationProgress = Math.min((marketCapSOL / 500) * 100, 100);
+
+            document.getElementById('currentPrice').textContent = currentPrice.toFixed(6);
+            document.getElementById('marketCap').textContent = '$' + marketCap.toFixed(2);
+            document.getElementById('marketCapSOL').textContent = marketCapSOL.toFixed(2);
+            document.getElementById('totalSupply').textContent = token.totalSupply.toLocaleString();
+            document.getElementById('graduationProgress').style.width = graduationProgress + '%';
+            document.getElementById('graduationText').textContent = graduationProgress.toFixed(1) + '% to graduation';
+
+            document.getElementById('totalVolume').textContent = (demoState.totalVolume / demoState.LAMPORTS_PER_SOL).toFixed(2);
+            document.getElementById('totalTransactions').textContent = demoState.totalTransactions;
+            document.getElementById('platformRevenue').textContent = (demoState.platformRevenue / demoState.LAMPORTS_PER_SOL).toFixed(4);
+        }
+
+        function updatePriceChart() {
+            const chartContainer = document.getElementById('priceChart');
+            chartContainer.innerHTML = '';
+
+            if (demoState.priceHistory.length === 0) {
+                const bar = document.createElement('div');
+                bar.className = 'price-bar';
+                bar.style.height = '30px';
+                bar.title = 'Initial Price';
+                chartContainer.appendChild(bar);
+                return;
+            }
+
+            const maxPrice = Math.max(...demoState.priceHistory);
+            const minPrice = Math.min(...demoState.priceHistory);
+            const range = maxPrice - minPrice || 1;
+
+            demoState.priceHistory.forEach((price, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'price-bar';
+                const height = Math.max(((price - minPrice) / range) * 150 + 20, 20);
+                bar.style.height = height + 'px';
+                bar.title = `Transaction ${index + 1}: ${(price / demoState.LAMPORTS_PER_SOL).toFixed(6)} SOL`;
+                chartContainer.appendChild(bar);
+            });
+        }
+
+        function updateUserBalances() {
+            const userSelect = document.getElementById('userSelect');
+            userSelect.innerHTML = '';
+            
+            for (const [id, user] of Object.entries(demoState.users)) {
+                const option = document.createElement('option');
+                option.value = id;
+                const balanceSOL = (user.balance / demoState.LAMPORTS_PER_SOL).toFixed(2);
+                option.textContent = `${user.name} (${balanceSOL} SOL)`;
+                userSelect.appendChild(option);
+            }
+        }
+
+        function generateMockAddress() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789';
+            let result = '';
+            for (let i = 0; i < 44; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // Initialize demo
+        updateMarketStats();
+        updateUserBalances();
+
+        // Simulate protection period ending after 5 minutes in demo
+        setTimeout(() => {
+            demoState.isProtectionPeriod = false;
+            log('🛡️ Protection period ended - normal limits now apply', 'info');
+        }, 300000);
+
+        log('🚀 DeGenie platform demo ready! Start by creating a token.', 'success');
+    </script>
+</body>
+</html>
