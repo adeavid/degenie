@@ -359,6 +359,11 @@ pub mod degenie_token_creator {
             },
         );
         anchor_lang::system_program::transfer(cpi_context, sol_amount)?;
+        
+        // Update treasury balance immediately after receiving funds
+        bonding_curve.treasury_balance = bonding_curve
+            .treasury_balance
+            .saturating_add(sol_amount);
 
         // Split fees between creator and platform
         if transaction_fee > 0 {
@@ -438,7 +443,6 @@ pub mod degenie_token_creator {
 
         // Update bonding curve state
         bonding_curve.total_supply += tokens_to_mint;
-        bonding_curve.treasury_balance += sol_amount; // Add gross amount first
         bonding_curve.total_volume += sol_amount;
         
         // Update price based on curve type
@@ -1177,7 +1181,11 @@ pub fn calculate_sol_for_tokens_with_curve(
             )?;
             
             // Average price for the transaction
-            let avg_price = (bonding_curve.current_price + new_price) / 2;
+            let avg_price = bonding_curve.current_price
+                .checked_add(new_price)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(2)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
             token_amount
                 .checked_mul(avg_price)
                 .ok_or(TokenCreatorError::InvalidAmount)
@@ -1205,7 +1213,14 @@ pub fn calculate_price_impact(
     let new_supply = bonding_curve.total_supply + tokens_to_buy;
     let new_price = match bonding_curve.curve_type {
         CurveType::Linear => {
-            bonding_curve.current_price + (bonding_curve.price_increment * tokens_to_buy / 1000)
+            let price_increase = bonding_curve.price_increment
+                .checked_mul(tokens_to_buy)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(1000)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            bonding_curve.current_price
+                .checked_add(price_increase)
+                .ok_or(TokenCreatorError::InvalidAmount)?
         },
         CurveType::Exponential => {
             calculate_price_exponential(
@@ -1215,7 +1230,14 @@ pub fn calculate_price_impact(
             )?
         },
         CurveType::Logarithmic => {
-            bonding_curve.current_price + (bonding_curve.price_increment * tokens_to_buy / 1000)
+            let price_increase = bonding_curve.price_increment
+                .checked_mul(tokens_to_buy)
+                .ok_or(TokenCreatorError::InvalidAmount)?
+                .checked_div(1000)
+                .ok_or(TokenCreatorError::InvalidAmount)?;
+            bonding_curve.current_price
+                .checked_add(price_increase)
+                .ok_or(TokenCreatorError::InvalidAmount)?
         }
     };
     
