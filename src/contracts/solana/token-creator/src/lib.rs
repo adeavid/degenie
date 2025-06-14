@@ -386,6 +386,12 @@ pub mod degenie_token_creator {
             ];
             let signer_seeds = &[&treasury_seeds[..]];
             
+            // Validate creator account for defense-in-depth
+            require!(
+                ctx.accounts.creator.key() == bonding_curve.authority,
+                TokenCreatorError::InsufficientAuthority
+            );
+            
             let creator_cpi = CpiContext::new_with_signer(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
@@ -575,6 +581,12 @@ pub mod degenie_token_creator {
             let platform_fee = transaction_fee
                 .checked_sub(creator_fee)
                 .ok_or(TokenCreatorError::InvalidAmount)?;
+            
+            // Validate creator account for defense-in-depth
+            require!(
+                ctx.accounts.creator.key() == bonding_curve.authority,
+                TokenCreatorError::InsufficientAuthority
+            );
             
             // Transfer creator fee with treasury as signer
             let creator_cpi = CpiContext::new_with_signer(
@@ -893,8 +905,11 @@ pub struct BuyTokens<'info> {
     )]
     pub treasury: Account<'info, Treasury>,
     
-    /// CHECK: Creator account for receiving fees
-    #[account(mut)]
+    /// Creator account - must be the authority that initialized the curve
+    #[account(
+        mut,
+        constraint = creator.key() == bonding_curve.authority @ TokenCreatorError::InsufficientAuthority
+    )]
     pub creator: UncheckedAccount<'info>,
     
     /// CHECK: Platform treasury for receiving platform fees
@@ -930,8 +945,11 @@ pub struct SellTokens<'info> {
     )]
     pub treasury: Account<'info, Treasury>,
     
-    /// CHECK: Creator account for receiving fees
-    #[account(mut)]
+    /// Creator account - must be the authority that initialized the curve
+    #[account(
+        mut,
+        constraint = creator.key() == bonding_curve.authority @ TokenCreatorError::InsufficientAuthority
+    )]
     pub creator: UncheckedAccount<'info>,
     
     /// CHECK: Platform treasury for receiving platform fees
