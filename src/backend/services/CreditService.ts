@@ -115,7 +115,7 @@ export class CreditService extends EventEmitter {
       const cacheKey = `credits:${userId}`;
       
       // Ensure cache is populated with current balance
-      const currentBalance = await this.getBalance(userId);
+      await this.getBalance(userId);
       // key already cached inside getBalance – avoid overwriting to preserve concurrent deductions
 
       // Atomic check and deduct

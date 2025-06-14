@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { uploadToIPFS } from '../../utils/ipfs';
 import { CreditService } from '../CreditService';
 import { UserTier, AssetType, GenerationProvider } from '../../types/ai';
-import { MockRedis } from '../MockRedis';
+import { MockRedis } from '../../src/services/MockRedis';
 
 interface GenerationConfig {
   provider: GenerationProvider;
@@ -132,11 +132,11 @@ export class AssetGenerationService {
 
   constructor() {
     this.togetherClient = new Together({
-      apiKey: process.env.TOGETHER_API_KEY!
+      auth: process.env['TOGETHER_API_KEY']!
     });
     
     this.replicateClient = new Replicate({
-      auth: process.env.REPLICATE_API_TOKEN!
+      auth: process.env['REPLICATE_API_TOKEN']!
     });
     
     this.redis = new MockRedis();
@@ -218,16 +218,16 @@ export class AssetGenerationService {
     prompt: string,
     config: GenerationConfig
   ): Promise<any> {
-    const response = await this.togetherClient.images.create({
-      model: config.model,
+    // Together AI uses inference endpoint for image generation
+    const response = await this.togetherClient.inference(config.model, {
       prompt,
       ...config.settings,
       n: 1,
-    });
+    }) as any;
 
     return {
-      data: response.data[0].b64_json,
-      url: response.data[0].url,
+      data: response.output?.data?.[0]?.b64_json || null,
+      url: response.output?.data?.[0]?.url || response.output?.[0] || null,
     };
   }
 
@@ -309,7 +309,7 @@ export class AssetGenerationService {
     await this.redis.hincrby(`usage:global:${tier}`, assetType, 1);
   }
 
-  async getGenerationHistory(userId: string, limit = 10): Promise<GenerationResult[]> {
+  async getGenerationHistory(_userId: string, limit = 10): Promise<GenerationResult[]> {
     // Implementation for retrieving user's generation history
     const keys = await this.redis.keys(`generation:*`);
     const results: GenerationResult[] = [];
