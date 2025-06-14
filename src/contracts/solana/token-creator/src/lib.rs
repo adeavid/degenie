@@ -252,6 +252,12 @@ pub mod degenie_token_creator {
         if treasury.authority == Pubkey::default() {
             treasury.authority = ctx.accounts.authority.key();
             treasury.bump = ctx.bumps.treasury;
+        } else {
+            // Validate existing treasury owner to prevent hijacking
+            require!(
+                treasury.authority == ctx.accounts.authority.key(),
+                TokenCreatorError::InsufficientAuthority
+            );
         }
 
         // Charge creation fee
