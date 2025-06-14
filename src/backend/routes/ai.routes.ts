@@ -46,18 +46,22 @@ router.post(
 // Webhook endpoints for automated credit earning
 router.post(
   '/webhooks/twitter-share/:userId',
-  async (_req, res) => {
+  async (req, res) => {
     // Verify Twitter webhook signature
     // Award credits for sharing
+    const { userId } = req.params;
+    console.log(`Twitter share webhook for user: ${userId}`);
     res.status(200).json({ received: true });
   }
 );
 
 router.post(
   '/webhooks/token-milestone/:tokenAddress',
-  async (_req, res) => {
+  async (req, res) => {
     // Verify blockchain data
     // Award credits to creator for reaching milestones
+    const { tokenAddress } = req.params;
+    console.log(`Token milestone webhook for token: ${tokenAddress}`);
     res.status(200).json({ received: true });
   }
 );

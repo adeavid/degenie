@@ -33,15 +33,16 @@ app.get('/health', (_req, res) => {
 });
 
 // Simple AI generation endpoint
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', async (req, res): Promise<void> => {
   try {
     const { prompt, type = 'logo', tier = 'free' } = req.body;
 
     if (!prompt?.trim()) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'Prompt is required',
         code: 'MISSING_PROMPT' 
       });
+      return;
     }
 
     let result;
@@ -103,7 +104,7 @@ app.post('/api/generate', async (req, res) => {
 });
 
 // Test Together.ai endpoint
-app.post('/api/test/together', async (req, res) => {
+app.post('/api/test/together', async (req, res): Promise<void> => {
   try {
     const { prompt = 'A simple logo' } = req.body;
     
@@ -127,7 +128,7 @@ app.post('/api/test/together', async (req, res) => {
 });
 
 // Test Replicate endpoint
-app.post('/api/test/replicate', async (req, res) => {
+app.post('/api/test/replicate', async (req, res): Promise<void> => {
   try {
     const { prompt = 'A premium logo' } = req.body;
     

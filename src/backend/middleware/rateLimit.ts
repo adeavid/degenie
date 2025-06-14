@@ -57,11 +57,11 @@ const defaultConfigs: Record<string, RateLimitConfig> = {
 export function rateLimitMiddleware(configName: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const config = defaultConfigs[configName] || defaultConfigs.api_general;
+      const config = defaultConfigs[configName] || defaultConfigs['api_general'];
       const userTier = req.user?.tier || 'free';
       
       // Calculate rate limit based on tier
-      const tierMultiplier = config.tierMultipliers?.[userTier as keyof typeof config.tierMultipliers] || 1;
+      const tierMultiplier = config.tierMultipliers ? config.tierMultipliers[userTier as keyof typeof config.tierMultipliers] || 1 : 1;
       const maxRequests = Math.floor(config.max * tierMultiplier);
       
       if (maxRequests === 0) {
