@@ -723,6 +723,16 @@ app.post('/api/tokens/deploy', async (req, res) => {
       symbol
     });
 
+    // Save the deployed token to our store
+    deployedTokens.set(deploymentResult.tokenAddress, {
+      ...deploymentResult,
+      createdAt: Date.now(),
+      deployer: walletAddress
+    });
+
+    console.log(`💾 [Token Deploy] Saved token to store: ${deploymentResult.tokenAddress}`);
+    console.log(`📊 [Token Deploy] Total tokens in store: ${deployedTokens.size}`);
+
     console.log(`📤 [Token Deploy] Sending response:`, {
       success: true,
       dataTokenAddress: deploymentResult.tokenAddress,
@@ -743,6 +753,9 @@ app.post('/api/tokens/deploy', async (req, res) => {
   }
 });
 
+// Simple in-memory store for deployed tokens
+const deployedTokens = new Map<string, any>();
+
 // Get user tokens endpoint
 app.get('/api/tokens/user/:walletAddress', async (req, res) => {
   try {
@@ -750,59 +763,69 @@ app.get('/api/tokens/user/:walletAddress', async (req, res) => {
     
     console.log(`📊 [Get User Tokens] Request for wallet: ${walletAddress}`);
     
-    // Mock user tokens with realistic Solana addresses and data
-    const mockUserTokens = [
-      {
-        tokenAddress: 'J7KfLJP2LTG3KKr4Qh2V8Kn3xY4zB9mN5wR6pA1sD8fH',
-        name: 'Perfect Token',
-        symbol: 'PERFECT',
-        description: 'The most perfect token ever created with DeGenie AI platform',
-        logoUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMxMGI5ODEiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCI+UEVSRkVDVDwvdHh0Pgo8L3N2Zz4=',
-        website: 'https://perfect-token.com',
-        twitter: 'https://twitter.com/perfect_token',
-        telegram: 'https://t.me/perfect_token',
-        createdAt: Date.now() - (2 * 60 * 60 * 1000), // 2 hours ago
-        totalSupply: '1000000000',
-        currentPrice: 0.00123,
-        marketCap: 1230000,
-        volume24h: 45600,
-        priceChange24h: 156.7,
-        holders: 234,
-        graduationProgress: 78.5,
-        isGraduated: false,
+    // Get real deployed tokens for this wallet
+    const userTokens = Array.from(deployedTokens.values())
+      .filter(token => token.deployer === walletAddress)
+      .map(token => ({
+        ...token,
+        // Add current market data (mock for now, but based on real token)
+        currentPrice: 0.000001 + (Math.random() * 0.001),
+        marketCap: Math.floor(Math.random() * 500000),
+        volume24h: Math.floor(Math.random() * 50000),
+        priceChange24h: (Math.random() - 0.5) * 50,
+        holders: Math.floor(Math.random() * 1000) + 10,
+        graduationProgress: Math.random() * 80,
+        isGraduated: Math.random() > 0.8,
         isDeployed: true
-      },
-      // Add more demo tokens if wallet matches test address
-      ...(walletAddress === '3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF' ? [
-        {
-          tokenAddress: '2JTYZAzvESb81G5yMUKe68HqnBVs4YxvUDrhWDw8i3Zz',
-          name: 'Test Token',
-          symbol: 'TEST',
-          description: 'A test token for demonstration purposes',
-          logoUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiM4YjVjZjYiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCI+VEVTVDwvdHh0Pgo8L3N2Zz4=',
-          createdAt: Date.now() - (24 * 60 * 60 * 1000), // 1 day ago
-          totalSupply: '1000000000',
-          currentPrice: 0.000456,
-          marketCap: 456000,
-          volume24h: 12300,
-          priceChange24h: 23.4,
-          holders: 89,
-          graduationProgress: 34.2,
-          isGraduated: false,
-          isDeployed: true
-        }
-      ] : [])
-    ];
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt); // Sort by newest first
     
-    console.log(`✅ [Get User Tokens] Returning ${mockUserTokens.length} tokens for ${walletAddress}`);
+    console.log(`✅ [Get User Tokens] Found ${userTokens.length} real tokens for ${walletAddress}`);
     
     res.json({
       success: true,
-      data: mockUserTokens
+      data: userTokens
     });
     
   } catch (error: any) {
     console.error('❌ [Get User Tokens] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all tokens for live feed
+app.get('/api/tokens/feed', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    
+    console.log(`🔥 [Live Feed] Request for ${limit} tokens`);
+    
+    // Get all deployed tokens, sorted by creation time (newest first)
+    const allTokens = Array.from(deployedTokens.values())
+      .map(token => ({
+        ...token,
+        // Add current market data
+        currentPrice: 0.000001 + (Math.random() * 0.001),
+        marketCap: Math.floor(Math.random() * 500000),
+        volume24h: Math.floor(Math.random() * 50000),
+        priceChange24h: (Math.random() - 0.5) * 50,
+        holders: Math.floor(Math.random() * 1000) + 10,
+        graduationProgress: Math.random() * 80,
+        isGraduated: Math.random() > 0.8,
+        isDeployed: true
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit);
+    
+    console.log(`✅ [Live Feed] Returning ${allTokens.length} tokens`);
+    
+    res.json({
+      success: true,
+      data: allTokens
+    });
+    
+  } catch (error: any) {
+    console.error('❌ [Live Feed] Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
