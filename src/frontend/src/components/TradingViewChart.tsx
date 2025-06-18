@@ -108,7 +108,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
     chartRef.current = chart;
 
     // Add candlestick series with pump.fun colors
-    const candlestickSeries = chart.addSeries('Candlestick', {
+    const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#10b981', // Green for bullish candles
       downColor: '#ef4444', // Red for bearish candles
       borderDownColor: '#ef4444',
@@ -126,7 +126,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
     // Add volume series if enabled
     if (showVolume) {
-      const volumeSeries = chart.addSeries('Histogram', {
+      const volumeSeries = chart.addHistogramSeries({
         color: '#6366f1',
         priceFormat: {
           type: 'volume',

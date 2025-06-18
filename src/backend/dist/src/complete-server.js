@@ -613,13 +613,53 @@ app.get('/api/tokens/user/:walletAddress', async (req, res) => {
     try {
         const { walletAddress } = req.params;
         console.log(`📊 [Get User Tokens] Request for wallet: ${walletAddress}`);
-        // For now, return empty array (can be extended to use database)
-        const userTokens = JSON.parse(
-        // Try to get from localStorage simulation or return empty
-        '[]');
+        // Mock user tokens with realistic Solana addresses and data
+        const mockUserTokens = [
+            {
+                tokenAddress: 'J7KfLJP2LTG3KKr4Qh2V8Kn3xY4zB9mN5wR6pA1sD8fH',
+                name: 'Perfect Token',
+                symbol: 'PERFECT',
+                description: 'The most perfect token ever created with DeGenie AI platform',
+                logoUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMxMGI5ODEiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCI+UEVSRkVDVDwvdHh0Pgo8L3N2Zz4=',
+                website: 'https://perfect-token.com',
+                twitter: 'https://twitter.com/perfect_token',
+                telegram: 'https://t.me/perfect_token',
+                createdAt: Date.now() - (2 * 60 * 60 * 1000), // 2 hours ago
+                totalSupply: '1000000000',
+                currentPrice: 0.00123,
+                marketCap: 1230000,
+                volume24h: 45600,
+                priceChange24h: 156.7,
+                holders: 234,
+                graduationProgress: 78.5,
+                isGraduated: false,
+                isDeployed: true
+            },
+            // Add more demo tokens if wallet matches test address
+            ...(walletAddress === '3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF' ? [
+                {
+                    tokenAddress: '2JTYZAzvESb81G5yMUKe68HqnBVs4YxvUDrhWDw8i3Zz',
+                    name: 'Test Token',
+                    symbol: 'TEST',
+                    description: 'A test token for demonstration purposes',
+                    logoUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiM4YjVjZjYiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCI+VEVTVDwvdHh0Pgo8L3N2Zz4=',
+                    createdAt: Date.now() - (24 * 60 * 60 * 1000), // 1 day ago
+                    totalSupply: '1000000000',
+                    currentPrice: 0.000456,
+                    marketCap: 456000,
+                    volume24h: 12300,
+                    priceChange24h: 23.4,
+                    holders: 89,
+                    graduationProgress: 34.2,
+                    isGraduated: false,
+                    isDeployed: true
+                }
+            ] : [])
+        ];
+        console.log(`✅ [Get User Tokens] Returning ${mockUserTokens.length} tokens for ${walletAddress}`);
         res.json({
             success: true,
-            data: userTokens
+            data: mockUserTokens
         });
     }
     catch (error) {

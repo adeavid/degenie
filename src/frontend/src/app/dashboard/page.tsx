@@ -48,6 +48,7 @@ import { formatNumber, formatPrice, formatAddress, getTimeAgo } from '@/lib/util
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { useUserTokens } from '@/hooks/useUserTokens';
+import { createPerfectToken } from '@/utils/createPerfectToken';
 
 interface UserToken {
   id: string;
@@ -614,6 +615,29 @@ export default function Dashboard() {
               )}
             </div>
             <div className="flex items-center space-x-3">
+              {/* Debug Button */}
+              <Button
+                onClick={() => {
+                  console.log('=== DEBUG DASHBOARD ===');
+                  console.log('Tokens:', tokens);
+                  console.log('Connected:', connected);
+                  console.log('Solana Address:', solanaAddress);
+                  const localTokens = localStorage.getItem('userTokens');
+                  console.log('LocalStorage tokens:', localTokens);
+                  if (localTokens) {
+                    console.log('Parsed localStorage:', JSON.parse(localTokens));
+                  }
+                  createPerfectToken();
+                  toast.success('Check console for debug info!');
+                  setTimeout(() => refreshTokens(), 1000);
+                }}
+                size="sm"
+                variant="outline"
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              >
+                🔍 Debug
+              </Button>
+              
               <div className={cn("px-3 py-1 rounded-full text-sm font-medium", getTierColor(currentStats.tier))}>
                 ⭐ {getTierBadge(currentStats.tier)} Tier
               </div>

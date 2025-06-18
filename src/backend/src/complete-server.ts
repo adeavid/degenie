@@ -757,7 +757,7 @@ app.get('/api/tokens/user/:walletAddress', async (req, res) => {
         name: 'Perfect Token',
         symbol: 'PERFECT',
         description: 'The most perfect token ever created with DeGenie AI platform',
-        logoUrl: 'https://via.placeholder.com/64x64/10b981/ffffff?text=💎',
+        logoUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMxMGI5ODEiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCI+UEVSRkVDVDwvdHh0Pgo8L3N2Zz4=',
         website: 'https://perfect-token.com',
         twitter: 'https://twitter.com/perfect_token',
         telegram: 'https://t.me/perfect_token',
@@ -779,7 +779,7 @@ app.get('/api/tokens/user/:walletAddress', async (req, res) => {
           name: 'Test Token',
           symbol: 'TEST',
           description: 'A test token for demonstration purposes',
-          logoUrl: 'https://via.placeholder.com/64x64/8b5cf6/ffffff?text=🧪',
+          logoUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiM4YjVjZjYiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCI+VEVTVDwvdHh0Pgo8L3N2Zz4=',
           createdAt: Date.now() - (24 * 60 * 60 * 1000), // 1 day ago
           totalSupply: '1000000000',
           currentPrice: 0.000456,

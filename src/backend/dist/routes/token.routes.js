@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const zod_1 = require("zod");
-const uuid_1 = require("uuid");
 const router = (0, express_1.Router)();
 // URL validation patterns
 const websiteUrlPattern = /^https?:\/\/.+/;
@@ -22,53 +21,58 @@ const deployTokenSchema = zod_1.z.object({
     twitter: zod_1.z.string().regex(twitterUrlPattern, 'Invalid Twitter URL format - use https://twitter.com/username').optional().or(zod_1.z.literal('')),
     telegram: zod_1.z.string().regex(telegramUrlPattern, 'Invalid Telegram URL format - use https://t.me/username').optional().or(zod_1.z.literal('')),
 });
-// Mock token deployment (in real app, this would interact with blockchain)
-router.post('/deploy', async (req, res) => {
-    try {
-        const validatedData = deployTokenSchema.parse(req.body);
-        const userId = validatedData.walletAddress; // Use wallet address as user ID for now
-        // Mock deployment process
-        const deploymentResult = {
-            tokenAddress: `token_${(0, uuid_1.v4)().replace(/-/g, '')}`,
-            mintKey: `mint_${(0, uuid_1.v4)().replace(/-/g, '')}`,
-            signature: `sig_${(0, uuid_1.v4)().replace(/-/g, '')}`,
-            network: validatedData.network,
-            name: validatedData.name,
-            symbol: validatedData.symbol,
-            totalSupply: validatedData.totalSupply,
-            logoUrl: validatedData.logoUrl,
-            website: validatedData.website,
-            twitter: validatedData.twitter,
-            telegram: validatedData.telegram,
-            createdAt: new Date().toISOString(),
-            creator: userId,
-        };
-        // In a real implementation, you would:
-        // 1. Create the token on the blockchain
-        // 2. Store the token data in the database
-        // 3. Set up the bonding curve
-        // 4. Initialize liquidity pool
-        console.log('Token deployment simulated:', deploymentResult);
-        res.status(200).json({
-            success: true,
-            data: deploymentResult,
-        });
+// Mock token deployment (DISABLED - using real deployment from complete-server.ts)
+/* router.post('/deploy', async (req: Request, res: Response) => {
+  try {
+    const validatedData = deployTokenSchema.parse(req.body);
+    const userId = validatedData.walletAddress; // Use wallet address as user ID for now
+
+    // Mock deployment process
+    const deploymentResult = {
+      tokenAddress: `token_${uuidv4().replace(/-/g, '')}`,
+      mintKey: `mint_${uuidv4().replace(/-/g, '')}`,
+      signature: `sig_${uuidv4().replace(/-/g, '')}`,
+      network: validatedData.network,
+      name: validatedData.name,
+      symbol: validatedData.symbol,
+      totalSupply: validatedData.totalSupply,
+      logoUrl: validatedData.logoUrl,
+      website: validatedData.website,
+      twitter: validatedData.twitter,
+      telegram: validatedData.telegram,
+      createdAt: new Date().toISOString(),
+      creator: userId,
+    };
+
+    // In a real implementation, you would:
+    // 1. Create the token on the blockchain
+    // 2. Store the token data in the database
+    // 3. Set up the bonding curve
+    // 4. Initialize liquidity pool
+
+    console.log('Token deployment simulated:', deploymentResult);
+
+    res.status(200).json({
+      success: true,
+      data: deploymentResult,
+    });
+  } catch (error) {
+    console.error('Token deployment error:', error);
+    
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Invalid token data',
+        details: error.errors
+      });
+      return;
     }
-    catch (error) {
-        console.error('Token deployment error:', error);
-        if (error instanceof zod_1.z.ZodError) {
-            res.status(400).json({
-                error: 'Invalid token data',
-                details: error.errors
-            });
-            return;
-        }
-        res.status(500).json({
-            error: 'Token deployment failed',
-            message: process.env['NODE_ENV'] === 'development' ? error instanceof Error ? error.message : 'Unknown error' : undefined
-        });
-    }
-});
+
+    res.status(500).json({
+      error: 'Token deployment failed',
+      message: process.env['NODE_ENV'] === 'development' ? error instanceof Error ? error.message : 'Unknown error' : undefined
+    });
+  }
+}); */
 // Get user's tokens
 router.get('/user/:walletAddress', async (req, res) => {
     try {
@@ -102,33 +106,39 @@ router.get('/user/:walletAddress', async (req, res) => {
 router.get('/:tokenAddress', async (req, res) => {
     try {
         const { tokenAddress } = req.params;
-        // Mock token info (in real app, query from database and blockchain)
-        const mockTokenInfo = {
+        // Generate dynamic token info based on address
+        // In real app, this would query from database and blockchain
+        const isTestAddress = tokenAddress === '2JTYZAzvESb81G5yMUKe68HqnBVs4YxvUDrhWDw8i3Zz';
+        const tokenInfo = {
             address: tokenAddress,
-            name: 'DeGenie Sample',
-            symbol: 'DGNS',
-            description: 'A sample token created with DeGenie AI-powered platform. This token demonstrates our advanced bonding curve mechanism and community-driven tokenomics.',
-            logoUrl: 'https://via.placeholder.com/64x64/8b5cf6/ffffff?text=DG',
-            website: 'https://degenie.ai',
-            twitter: 'https://twitter.com/degenie_ai',
-            telegram: 'https://t.me/degenie_community',
+            name: isTestAddress ? 'Test Token' : 'DeGenie Token',
+            symbol: isTestAddress ? 'TEST' : tokenAddress.slice(0, 4).toUpperCase(),
+            description: `A token deployed on Solana using DeGenie AI-powered platform. Contract address: ${tokenAddress}`,
+            logoUrl: isTestAddress ?
+                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMxMGI5ODEiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCI+VEVTVDwvdHh0Pgo8L3N2Zz4=' :
+                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiM4YjVjZjYiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCI+REc8L3R4dD4KPC9zdmc+',
+            website: '',
+            twitter: '',
+            telegram: '',
             creator: '7xKXtg2CW3H6cGh5rJ8qHjYo5mW9L2Nk3QpR6FsX4uP8',
-            createdAt: Date.now() - (24 * 60 * 60 * 1000), // 24 hours ago
+            createdAt: Date.now() - (Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in last week
             totalSupply: 1000000000,
-            currentPrice: 0.000234,
-            marketCap: 234000,
-            volume24h: 45600,
-            priceChange24h: 12.5,
-            holdersCount: 1250,
-            bondingCurveProgress: 46.8,
+            currentPrice: 0.000001 + (Math.random() * 0.001),
+            marketCap: Math.floor(Math.random() * 500000),
+            volume24h: Math.floor(Math.random() * 50000),
+            priceChange24h: (Math.random() - 0.5) * 50, // Random change between -25% and +25%
+            holdersCount: Math.floor(Math.random() * 2000) + 50,
+            bondingCurveProgress: Math.random() * 80,
             graduationThreshold: 500000, // 500k SOL
-            liquidityCollected: 234000, // Current liquidity
-            isGraduated: false,
+            liquidityCollected: Math.floor(Math.random() * 300000),
+            isGraduated: Math.random() > 0.8, // 20% chance of being graduated
             isWatchlisted: false
         };
+        console.log(`📊 [Token Info] Requested: ${tokenAddress}`);
+        console.log(`📊 [Token Info] Returning:`, { name: tokenInfo.name, symbol: tokenInfo.symbol });
         res.status(200).json({
             success: true,
-            data: mockTokenInfo,
+            data: tokenInfo,
         });
     }
     catch (error) {
