@@ -60,6 +60,9 @@ const replicate = new Replicate({
 
 const creditService = new CreditService();
 
+// Simple in-memory store for deployed tokens
+const deployedTokens = new Map<string, any>();
+
 // 🚀 REAL TOKEN DEPLOYMENT FUNCTION - Like Pump.fun!
 async function deployRealSolanaToken({
   name,
@@ -282,6 +285,80 @@ app.get('/health', (_req, res) => {
 
 // Auth routes
 app.use('/api/auth', authRouter);
+
+// Get all tokens for live feed (MUST be before tokenRouter)
+app.get('/api/tokens/feed', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    
+    console.log(`🔥 [Live Feed] Request for ${limit} tokens`);
+    
+    // Get all deployed tokens, sorted by creation time (newest first)
+    const allTokens = Array.from(deployedTokens.values())
+      .map(token => ({
+        ...token,
+        // Add current market data
+        currentPrice: 0.000001 + (Math.random() * 0.001),
+        marketCap: Math.floor(Math.random() * 500000),
+        volume24h: Math.floor(Math.random() * 50000),
+        priceChange24h: (Math.random() - 0.5) * 50,
+        holders: Math.floor(Math.random() * 1000) + 10,
+        graduationProgress: Math.random() * 80,
+        isGraduated: Math.random() > 0.8,
+        isDeployed: true
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit);
+    
+    console.log(`✅ [Live Feed] Returning ${allTokens.length} tokens`);
+    
+    res.json({
+      success: true,
+      data: allTokens
+    });
+    
+  } catch (error: any) {
+    console.error('❌ [Live Feed] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user tokens endpoint (MUST be before tokenRouter)
+app.get('/api/tokens/user/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    console.log(`📊 [Get User Tokens] Request for wallet: ${walletAddress}`);
+    
+    // Get real deployed tokens for this wallet
+    const userTokens = Array.from(deployedTokens.values())
+      .filter(token => token.deployer === walletAddress)
+      .map(token => ({
+        ...token,
+        // Add current market data (mock for now, but based on real token)
+        currentPrice: 0.000001 + (Math.random() * 0.001),
+        marketCap: Math.floor(Math.random() * 500000),
+        volume24h: Math.floor(Math.random() * 50000),
+        priceChange24h: (Math.random() - 0.5) * 50,
+        holders: Math.floor(Math.random() * 1000) + 10,
+        graduationProgress: Math.random() * 80,
+        isGraduated: Math.random() > 0.8,
+        isDeployed: true
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt); // Sort by newest first
+    
+    console.log(`✅ [Get User Tokens] Found ${userTokens.length} real tokens for ${walletAddress}`);
+    
+    res.json({
+      success: true,
+      data: userTokens
+    });
+    
+  } catch (error: any) {
+    console.error('❌ [Get User Tokens] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Token routes
 app.use('/api/tokens', tokenRouter);
@@ -750,83 +827,6 @@ app.post('/api/tokens/deploy', async (req, res) => {
       error: error.message || 'Token deployment failed',
       code: 'DEPLOYMENT_ERROR'
     });
-  }
-});
-
-// Simple in-memory store for deployed tokens
-const deployedTokens = new Map<string, any>();
-
-// Get user tokens endpoint
-app.get('/api/tokens/user/:walletAddress', async (req, res) => {
-  try {
-    const { walletAddress } = req.params;
-    
-    console.log(`📊 [Get User Tokens] Request for wallet: ${walletAddress}`);
-    
-    // Get real deployed tokens for this wallet
-    const userTokens = Array.from(deployedTokens.values())
-      .filter(token => token.deployer === walletAddress)
-      .map(token => ({
-        ...token,
-        // Add current market data (mock for now, but based on real token)
-        currentPrice: 0.000001 + (Math.random() * 0.001),
-        marketCap: Math.floor(Math.random() * 500000),
-        volume24h: Math.floor(Math.random() * 50000),
-        priceChange24h: (Math.random() - 0.5) * 50,
-        holders: Math.floor(Math.random() * 1000) + 10,
-        graduationProgress: Math.random() * 80,
-        isGraduated: Math.random() > 0.8,
-        isDeployed: true
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt); // Sort by newest first
-    
-    console.log(`✅ [Get User Tokens] Found ${userTokens.length} real tokens for ${walletAddress}`);
-    
-    res.json({
-      success: true,
-      data: userTokens
-    });
-    
-  } catch (error: any) {
-    console.error('❌ [Get User Tokens] Error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get all tokens for live feed
-app.get('/api/tokens/feed', async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 20;
-    
-    console.log(`🔥 [Live Feed] Request for ${limit} tokens`);
-    
-    // Get all deployed tokens, sorted by creation time (newest first)
-    const allTokens = Array.from(deployedTokens.values())
-      .map(token => ({
-        ...token,
-        // Add current market data
-        currentPrice: 0.000001 + (Math.random() * 0.001),
-        marketCap: Math.floor(Math.random() * 500000),
-        volume24h: Math.floor(Math.random() * 50000),
-        priceChange24h: (Math.random() - 0.5) * 50,
-        holders: Math.floor(Math.random() * 1000) + 10,
-        graduationProgress: Math.random() * 80,
-        isGraduated: Math.random() > 0.8,
-        isDeployed: true
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, limit);
-    
-    console.log(`✅ [Live Feed] Returning ${allTokens.length} tokens`);
-    
-    res.json({
-      success: true,
-      data: allTokens
-    });
-    
-  } catch (error: any) {
-    console.error('❌ [Live Feed] Error:', error);
-    res.status(500).json({ error: error.message });
   }
 });
 
