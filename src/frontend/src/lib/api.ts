@@ -69,7 +69,12 @@ class ApiService {
         return { error: data.error || `HTTP ${response.status}` };
       }
 
-      return { data };
+      // Extract the actual data from backend response structure
+      // Backend sends: { success: true, data: actual_data }
+      // Frontend expects: { data: actual_data }
+      const actualData = data.success && data.data !== undefined ? data.data : data;
+      
+      return { data: actualData };
     } catch (error) {
       console.error(`[API] Request failed for ${endpoint}:`, error);
       return { error: error instanceof Error ? error.message : 'Unknown error' };
@@ -291,6 +296,9 @@ class ApiService {
     logoUrl?: string;
     walletAddress: string;
     network?: string;
+    website?: string;
+    twitter?: string;
+    telegram?: string;
     selectedAssets?: Record<string, any>;
   }): Promise<ApiResponse<TokenDeployment>> {
     
@@ -332,6 +340,105 @@ class ApiService {
 
   async healthCheck(): Promise<ApiResponse<{ status: string; services: any }>> {
     return this.makeRequest<{ status: string; services: any }>('/health');
+  }
+
+  // Trading and Token Page Methods
+
+  async getTokenTrades(tokenAddress: string): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>(`/api/tokens/${tokenAddress}/trades`);
+  }
+
+  async getTokenHolders(tokenAddress: string): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>(`/api/tokens/${tokenAddress}/holders`);
+  }
+
+  async getTokenComments(tokenAddress: string): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>(`/api/tokens/${tokenAddress}/comments`);
+  }
+
+  async getTokenChart(tokenAddress: string, timeframe: string): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>(`/api/tokens/${tokenAddress}/chart?timeframe=${timeframe}`);
+  }
+
+  async calculateTrade(params: {
+    tokenAddress: string;
+    amount: number;
+    type: 'buy' | 'sell';
+    inputType: 'sol' | 'token';
+    slippage: number;
+  }): Promise<ApiResponse<{
+    expectedTokens?: number;
+    expectedSol?: number;
+    priceImpact?: number;
+    minReceived?: number;
+    fees?: number;
+  }>> {
+    return this.makeRequest(`/api/tokens/${params.tokenAddress}/calculate-trade`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async executeTrade(params: {
+    tokenAddress: string;
+    type: 'buy' | 'sell';
+    solAmount?: number;
+    tokenAmount?: number;
+    slippage: number;
+    walletAddress: string;
+  }): Promise<ApiResponse<{
+    signature: string;
+    success: boolean;
+  }>> {
+    return this.makeRequest(`/api/tokens/${params.tokenAddress}/trade`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async getWalletBalance(walletAddress: string): Promise<ApiResponse<{
+    sol: number;
+    tokens: { [tokenAddress: string]: number };
+  }>> {
+    return this.makeRequest<any>(`/api/wallet/${walletAddress}/balance`);
+  }
+
+  async getTokenBalance(walletAddress: string, tokenAddress: string): Promise<ApiResponse<{
+    balance: number;
+  }>> {
+    return this.makeRequest<any>(`/api/wallet/${walletAddress}/balance/${tokenAddress}`);
+  }
+
+  async toggleWatchlist(tokenAddress: string, add: boolean): Promise<ApiResponse<{ success: boolean }>> {
+    return this.makeRequest(`/api/tokens/${tokenAddress}/watchlist`, {
+      method: add ? 'POST' : 'DELETE',
+    });
+  }
+
+  async postComment(params: {
+    tokenAddress: string;
+    content: string;
+    author: string;
+    parentId?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest(`/api/tokens/${params.tokenAddress}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async likeComment(commentId: string, userAddress: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.makeRequest(`/api/comments/${commentId}/like`, {
+      method: 'POST',
+      body: JSON.stringify({ userAddress }),
+    });
+  }
+
+  async deleteComment(commentId: string, userAddress: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.makeRequest(`/api/comments/${commentId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ userAddress }),
+    });
   }
 }
 

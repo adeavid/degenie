@@ -9,6 +9,8 @@ interface WalletConnectionState {
   isSolConnected: boolean;
   ethAddress: string | null;
   solanaAddress: string | null;
+  publicKey: { toString: () => string } | null;
+  connectWallet: () => Promise<void>;
 }
 
 export function useWalletConnection(): WalletConnectionState {
@@ -19,6 +21,8 @@ export function useWalletConnection(): WalletConnectionState {
     isSolConnected: false,
     ethAddress: null,
     solanaAddress: null,
+    publicKey: null,
+    connectWallet: async () => {},
   });
 
   useEffect(() => {
@@ -58,7 +62,8 @@ export function useWalletConnection(): WalletConnectionState {
         }
 
         const connected = isEthConnected || isSolConnected;
-        const address = ethAddress || solanaAddress;
+        const address = ethAddress || solanaAddress || null;
+        const publicKey = solanaAddress ? { toString: () => solanaAddress } : null;
 
         setState({
           connected,
@@ -67,6 +72,13 @@ export function useWalletConnection(): WalletConnectionState {
           isSolConnected,
           ethAddress,
           solanaAddress,
+          publicKey,
+          connectWallet: async () => {
+            if (window.solana && window.solana.connect) {
+              await window.solana.connect();
+              checkWalletConnection();
+            }
+          },
         });
 
         console.log('[useWalletConnection] State updated:', {

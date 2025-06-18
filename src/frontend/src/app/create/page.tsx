@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { cn } from '@/lib/utils';
+import { cn, validateSocialUrls, validateWebsiteUrl, validateTwitterUrl, validateTelegramUrl } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { apiService, type GeneratedAsset as ApiGeneratedAsset } from '@/lib/api';
 import { TokenCreationSuccess } from '@/components/TokenCreationSuccess';
@@ -47,7 +47,7 @@ interface TokenFormData {
 
 interface GeneratedAsset {
   id: string;
-  type: 'logo' | 'meme' | 'gif';
+  type: 'logo' | 'meme' | 'gif' | 'video';
   url: string;
   prompt: string;
   isSelected: boolean;
@@ -101,6 +101,7 @@ export default function CreateToken() {
   const [generatedAssets, setGeneratedAssets] = useState<GeneratedAsset[]>([]);
   const [selectedAssets, setSelectedAssets] = useState<Record<string, string>>({});
   const [deploymentSuccess, setDeploymentSuccess] = useState<any>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     console.log('[CreateToken] Wallet state:', { connected, isEthConnected, isSolConnected, ethAddress, solanaAddress });
@@ -113,11 +114,16 @@ export default function CreateToken() {
         router.push('/');
       } else if (publicKey) {
         // Auto-login user when wallet is connected
-        const walletAddress = typeof publicKey === 'string' 
-          ? publicKey 
-          : publicKey.toString();
+        let walletAddress = '';
+        if (typeof publicKey === 'string') {
+          walletAddress = publicKey;
+        } else if (publicKey && 'toString' in publicKey) {
+          walletAddress = (publicKey as any).toString();
+        }
         console.log('[CreateToken] Auto-login with wallet:', walletAddress);
-        authService.loginWithWallet(walletAddress).catch(console.error);
+        if (walletAddress) {
+          authService.loginWithWallet(walletAddress).catch(console.error);
+        }
       }
     }, 1000); // Wait 1 second for wallet state to stabilize
 
@@ -126,6 +132,39 @@ export default function CreateToken() {
 
   const updateFormData = (field: keyof TokenFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Validate social media URLs in real-time
+    if (['website', 'twitter', 'telegram'].includes(field)) {
+      const newFormData = { ...formData, [field]: value };
+      validateFormUrls(newFormData);
+    }
+  };
+
+  const validateFormUrls = (data: TokenFormData) => {
+    const errors: Record<string, string> = {};
+    
+    if (data.website) {
+      const websiteResult = validateWebsiteUrl(data.website);
+      if (!websiteResult.isValid && websiteResult.error) {
+        errors.website = websiteResult.error;
+      }
+    }
+    
+    if (data.twitter) {
+      const twitterResult = validateTwitterUrl(data.twitter);
+      if (!twitterResult.isValid && twitterResult.error) {
+        errors.twitter = twitterResult.error;
+      }
+    }
+    
+    if (data.telegram) {
+      const telegramResult = validateTelegramUrl(data.telegram);
+      if (!telegramResult.isValid && telegramResult.error) {
+        errors.telegram = telegramResult.error;
+      }
+    }
+    
+    setValidationErrors(errors);
   };
 
 
@@ -154,8 +193,11 @@ export default function CreateToken() {
         description: formData.description,
         totalSupply: formData.totalSupply,
         logoUrl: selectedLogo?.url,
-        walletAddress: typeof publicKey === 'string' ? publicKey : publicKey.toString(),
-        network: 'solana'
+        walletAddress: typeof publicKey === 'string' ? publicKey : (publicKey && 'toString' in publicKey ? (publicKey as any).toString() : ''),
+        network: 'solana',
+        website: formData.website,
+        twitter: formData.twitter,
+        telegram: formData.telegram
       });
 
       if (result.error) {
@@ -168,7 +210,7 @@ export default function CreateToken() {
         console.log('🚀 [Token Deploy] Backend response data:', JSON.stringify(result.data, null, 2));
         
         // Fix: Access nested data structure correctly
-        const deploymentData = result.data.data || result.data;
+        const deploymentData = (result.data as any).data || result.data;
         console.log('🔍 [Token Deploy] tokenAddress received:', deploymentData.tokenAddress);
         console.log('🔍 [Token Deploy] transactionHash received:', deploymentData.transactionHash);
         
@@ -180,13 +222,39 @@ export default function CreateToken() {
           signature: deploymentData.transactionHash, // Use transactionHash as signature
           createdAt: Date.now(),
           isDeployed: true,
-          logoUrl: selectedLogo?.url
+          logoUrl: selectedLogo?.url,
+          website: formData.website,
+          twitter: formData.twitter,
+          telegram: formData.telegram
         };
         
-        // Store in localStorage temporarily (in real app, this would be in database)
-        const existingTokens = JSON.parse(localStorage.getItem('userTokens') || '[]');
-        existingTokens.push(deploymentInfo);
-        localStorage.setItem('userTokens', JSON.stringify(existingTokens));
+        // Store in localStorage with error handling
+        try {
+          const existingTokens = JSON.parse(localStorage.getItem('userTokens') || '[]');
+          
+          // Clean old tokens if too many (keep only last 10)
+          if (existingTokens.length >= 10) {
+            existingTokens.splice(0, existingTokens.length - 9);
+          }
+          
+          // Remove large data to save space
+          const compactDeploymentInfo = {
+            ...deploymentInfo,
+            logoUrl: deploymentInfo.logoUrl?.length > 1000 ? 'data:image/placeholder' : deploymentInfo.logoUrl,
+            selectedAssets: undefined // Remove large asset data
+          };
+          
+          existingTokens.push(compactDeploymentInfo);
+          localStorage.setItem('userTokens', JSON.stringify(existingTokens));
+        } catch (storageError) {
+          console.warn('Failed to save to localStorage (quota exceeded):', storageError);
+          // Clear old data and try again
+          try {
+            localStorage.setItem('userTokens', JSON.stringify([deploymentInfo]));
+          } catch (retryError) {
+            console.error('localStorage completely full, token data not saved locally');
+          }
+        }
         
         // Show success page
         setDeploymentSuccess({
@@ -421,24 +489,51 @@ export default function CreateToken() {
                         Social Links (Optional)
                       </label>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Input
-                          placeholder="Website URL"
-                          value={formData.website || ''}
-                          onChange={(e) => updateFormData('website', e.target.value)}
-                          className="bg-gray-800 border-gray-600 text-white"
-                        />
-                        <Input
-                          placeholder="Twitter URL"
-                          value={formData.twitter || ''}
-                          onChange={(e) => updateFormData('twitter', e.target.value)}
-                          className="bg-gray-800 border-gray-600 text-white"
-                        />
-                        <Input
-                          placeholder="Telegram URL"
-                          value={formData.telegram || ''}
-                          onChange={(e) => updateFormData('telegram', e.target.value)}
-                          className="bg-gray-800 border-gray-600 text-white"
-                        />
+                        <div>
+                          <Input
+                            placeholder="Website URL"
+                            value={formData.website || ''}
+                            onChange={(e) => updateFormData('website', e.target.value)}
+                            className={cn(
+                              "bg-gray-800 border-gray-600 text-white",
+                              validationErrors.website && "border-red-500 focus:ring-red-500"
+                            )}
+                          />
+                          {validationErrors.website && (
+                            <p className="text-red-400 text-xs mt-1">{validationErrors.website}</p>
+                          )}
+                          <p className="text-gray-500 text-xs mt-1">e.g. https://example.com</p>
+                        </div>
+                        <div>
+                          <Input
+                            placeholder="Twitter URL"
+                            value={formData.twitter || ''}
+                            onChange={(e) => updateFormData('twitter', e.target.value)}
+                            className={cn(
+                              "bg-gray-800 border-gray-600 text-white",
+                              validationErrors.twitter && "border-red-500 focus:ring-red-500"
+                            )}
+                          />
+                          {validationErrors.twitter && (
+                            <p className="text-red-400 text-xs mt-1">{validationErrors.twitter}</p>
+                          )}
+                          <p className="text-gray-500 text-xs mt-1">e.g. https://twitter.com/username</p>
+                        </div>
+                        <div>
+                          <Input
+                            placeholder="Telegram URL"
+                            value={formData.telegram || ''}
+                            onChange={(e) => updateFormData('telegram', e.target.value)}
+                            className={cn(
+                              "bg-gray-800 border-gray-600 text-white",
+                              validationErrors.telegram && "border-red-500 focus:ring-red-500"
+                            )}
+                          />
+                          {validationErrors.telegram && (
+                            <p className="text-red-400 text-xs mt-1">{validationErrors.telegram}</p>
+                          )}
+                          <p className="text-gray-500 text-xs mt-1">e.g. https://t.me/username</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -604,7 +699,7 @@ export default function CreateToken() {
             <Button
               onClick={nextStep}
               disabled={
-                (currentStep === 1 && (!formData.name || !formData.symbol || !formData.description)) ||
+                (currentStep === 1 && (!formData.name || !formData.symbol || !formData.description || Object.keys(validationErrors).length > 0)) ||
                 (currentStep === 2 && generatedAssets.length === 0)
               }
               className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"

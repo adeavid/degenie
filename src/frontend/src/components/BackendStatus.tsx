@@ -9,9 +9,12 @@ export function BackendStatus() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 5000);
+        
         const response = await fetch('http://localhost:4000/health', {
           method: 'GET',
-          timeout: 5000
+          signal: controller.signal
         });
         
         if (response.ok) {

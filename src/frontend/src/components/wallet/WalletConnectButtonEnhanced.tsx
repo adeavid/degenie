@@ -127,7 +127,7 @@ export function WalletConnectButtonEnhanced() {
             </div>
 
             <div className="text-xs text-gray-400 text-center">
-              Don't have a wallet? Install MetaMask or Phantom to get started.
+              Don&apos;t have a wallet? Install MetaMask or Phantom to get started.
             </div>
           </div>
         </Card>
