@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, HistogramData, CandlestickSeriesPartialOptions, HistogramSeriesPartialOptions } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, HistogramData, CandlestickSeriesPartialOptions, HistogramSeriesPartialOptions, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -108,7 +108,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
     chartRef.current = chart;
 
     // Add candlestick series with pump.fun colors
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981', // Green for bullish candles
       downColor: '#ef4444', // Red for bearish candles
       borderDownColor: '#ef4444',
@@ -126,7 +126,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
     // Add volume series if enabled
     if (showVolume) {
-      const volumeSeries = chart.addHistogramSeries({
+      const volumeSeries = chart.addSeries(HistogramSeries, {
         color: '#6366f1',
         priceFormat: {
           type: 'volume',
