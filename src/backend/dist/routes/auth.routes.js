@@ -10,7 +10,7 @@ const prisma_1 = require("../lib/prisma");
 const router = (0, express_1.Router)();
 // Validation schemas
 const walletLoginSchema = zod_1.z.object({
-    walletAddress: zod_1.z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
+    walletAddress: zod_1.z.string().min(32), // Accept both Ethereum (42 chars) and Solana (32-44 chars)
     signature: zod_1.z.string().optional(), // For future signature verification
     referralCode: zod_1.z.string().optional(),
 });
@@ -19,7 +19,7 @@ const emailLoginSchema = zod_1.z.object({
     password: zod_1.z.string().min(8),
 });
 const registerSchema = zod_1.z.object({
-    walletAddress: zod_1.z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
+    walletAddress: zod_1.z.string().min(32), // Accept both Ethereum and Solana addresses
     email: zod_1.z.string().email().optional(),
     username: zod_1.z.string().min(3).max(30).optional(),
     referralCode: zod_1.z.string().optional(),

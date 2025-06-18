@@ -15,7 +15,7 @@ dotenv_1.default.config();
 // Import routes
 const ai_routes_1 = __importDefault(require("../routes/ai.routes"));
 const auth_routes_1 = __importDefault(require("../routes/auth.routes"));
-// import tokenRoutes from './routes/token.routes';
+const token_routes_1 = __importDefault(require("../routes/token.routes"));
 // Import services for initialization
 const CreditService_1 = require("../services/CreditService");
 const app = (0, express_1.default)();
@@ -59,7 +59,7 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/ai', ai_routes_1.default);
 app.use('/api/auth', auth_routes_1.default);
-// app.use('/api/tokens', tokenRoutes);
+app.use('/api/tokens', token_routes_1.default);
 // Error handling middleware
 app.use((err, _req, res, _next) => {
     console.error('Error:', err);

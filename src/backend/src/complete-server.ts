@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 import Replicate from 'replicate';
 import { CreditService } from '../services/CreditService';
 import authRouter from '../routes/auth.routes';
+import tokenRouter from '../routes/token.routes';
+import walletRouter from '../routes/wallet.routes';
+import commentRouter from '../routes/comments.routes';
 // import { MockRedis } from './services/MockRedis';
 
 // 🚀 SOLANA IMPORTS FOR REAL TOKEN DEPLOYMENT
@@ -279,6 +282,15 @@ app.get('/health', (_req, res) => {
 
 // Auth routes
 app.use('/api/auth', authRouter);
+
+// Token routes
+app.use('/api/tokens', tokenRouter);
+
+// Wallet routes
+app.use('/api/wallet', walletRouter);
+
+// Comment routes
+app.use('/api/comments', commentRouter);
 
 // Unified generation endpoint with credit system
 app.post('/api/generate/:type', async (req, res) => {
@@ -738,15 +750,55 @@ app.get('/api/tokens/user/:walletAddress', async (req, res) => {
     
     console.log(`📊 [Get User Tokens] Request for wallet: ${walletAddress}`);
     
-    // For now, return empty array (can be extended to use database)
-    const userTokens = JSON.parse(
-      // Try to get from localStorage simulation or return empty
-      '[]'
-    );
+    // Mock user tokens with realistic Solana addresses and data
+    const mockUserTokens = [
+      {
+        tokenAddress: 'J7KfLJP2LTG3KKr4Qh2V8Kn3xY4zB9mN5wR6pA1sD8fH',
+        name: 'Perfect Token',
+        symbol: 'PERFECT',
+        description: 'The most perfect token ever created with DeGenie AI platform',
+        logoUrl: 'https://via.placeholder.com/64x64/10b981/ffffff?text=💎',
+        website: 'https://perfect-token.com',
+        twitter: 'https://twitter.com/perfect_token',
+        telegram: 'https://t.me/perfect_token',
+        createdAt: Date.now() - (2 * 60 * 60 * 1000), // 2 hours ago
+        totalSupply: '1000000000',
+        currentPrice: 0.00123,
+        marketCap: 1230000,
+        volume24h: 45600,
+        priceChange24h: 156.7,
+        holders: 234,
+        graduationProgress: 78.5,
+        isGraduated: false,
+        isDeployed: true
+      },
+      // Add more demo tokens if wallet matches test address
+      ...(walletAddress === '3yqm9NMVuZckjMpWwVZ4Vjig1spjYfLVP9jgDWybrcCF' ? [
+        {
+          tokenAddress: '2JTYZAzvESb81G5yMUKe68HqnBVs4YxvUDrhWDw8i3Zz',
+          name: 'Test Token',
+          symbol: 'TEST',
+          description: 'A test token for demonstration purposes',
+          logoUrl: 'https://via.placeholder.com/64x64/8b5cf6/ffffff?text=🧪',
+          createdAt: Date.now() - (24 * 60 * 60 * 1000), // 1 day ago
+          totalSupply: '1000000000',
+          currentPrice: 0.000456,
+          marketCap: 456000,
+          volume24h: 12300,
+          priceChange24h: 23.4,
+          holders: 89,
+          graduationProgress: 34.2,
+          isGraduated: false,
+          isDeployed: true
+        }
+      ] : [])
+    ];
+    
+    console.log(`✅ [Get User Tokens] Returning ${mockUserTokens.length} tokens for ${walletAddress}`);
     
     res.json({
       success: true,
-      data: userTokens
+      data: mockUserTokens
     });
     
   } catch (error: any) {

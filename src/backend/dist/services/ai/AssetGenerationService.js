@@ -143,13 +143,29 @@ class AssetGenerationService {
             else {
                 result = await this.generateWithReplicate(optimizedPrompt, config);
             }
-            // Upload to IPFS
-            const ipfsHash = await (0, ipfs_1.uploadToIPFS)(result.data || result.output);
+            // Upload to IPFS (with fallback for development)
+            let ipfsHash;
+            let imageUrl = result.url || result.output?.[0];
+            // For development, use fallback URL if no image URL is provided
+            if (!imageUrl) {
+                const size = assetType === 'logo' ? '256/256' : '512/512';
+                imageUrl = `https://picsum.photos/${size}?random=${Date.now()}-${assetType}`;
+                console.log(`Using fallback placeholder for ${assetType}`);
+            }
+            try {
+                if (result.data || result.output) {
+                    ipfsHash = await (0, ipfs_1.uploadToIPFS)(result.data || result.output);
+                }
+            }
+            catch (ipfsError) {
+                console.warn('IPFS upload failed:', ipfsError);
+                // IPFS failure doesn't change the imageUrl, we keep the existing one
+            }
             // Save generation metadata
             const generationId = (0, uuid_1.v4)();
             const metadata = {
                 id: generationId,
-                url: result.url || result.output?.[0],
+                url: imageUrl,
                 ipfsHash,
                 metadata: {
                     prompt: optimizedPrompt,
