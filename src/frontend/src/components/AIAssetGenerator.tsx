@@ -81,7 +81,7 @@ export function AIAssetGenerator({
 
   const currentStepConfig = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
-  const canProceed = currentStepConfig.required ? completedAssets[currentStepConfig.id] : true;
+  // Note: canProceed logic moved to button disabled state
 
   const handleAssetComplete = (asset: GeneratedAssetExtended) => {
     const stepId = currentStepConfig.id;
@@ -93,14 +93,7 @@ export function AIAssetGenerator({
     // Auto-select the asset
     onAssetSelect(asset.id, asset.type);
 
-    // Auto-advance to next step after a brief delay
-    setTimeout(() => {
-      if (isLastStep) {
-        completeFlow();
-      } else {
-        nextStep();
-      }
-    }, 1500);
+    // Note: Removed auto-advance - user controls navigation with buttons
   };
 
   const handleSkip = () => {
@@ -305,14 +298,26 @@ export function AIAssetGenerator({
           Previous
         </Button>
 
-        <div className="flex items-center space-x-2 text-sm text-gray-400">
-          <span>{Object.keys(completedAssets).length} assets completed</span>
+        <div className="flex items-center space-x-2 text-sm">
+          {completedAssets[currentStepConfig.id] ? (
+            <span className="text-green-400 flex items-center">
+              <CheckCircle className="w-4 h-4 mr-1" />
+              {currentStepConfig.name} completed - Ready to continue
+            </span>
+          ) : (
+            <span className="text-gray-400">
+              {Object.keys(completedAssets).length} of {steps.length} assets completed
+            </span>
+          )}
         </div>
 
         <Button
           onClick={isLastStep ? completeFlow : nextStep}
           disabled={currentStepConfig.required && !completedAssets[currentStepConfig.id]}
-          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          className={cn(
+            "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700",
+            completedAssets[currentStepConfig.id] && !isLastStep && "animate-pulse border-2 border-green-400"
+          )}
         >
           {isLastStep ? (
             <>
@@ -321,7 +326,7 @@ export function AIAssetGenerator({
             </>
           ) : (
             <>
-              Next
+              {completedAssets[currentStepConfig.id] ? 'Continue' : 'Next'}
               <ArrowRight className="w-4 h-4 ml-2" />
             </>
           )}

@@ -105,6 +105,8 @@ export function FileUploadComponent({
   };
 
   const confirmUpload = () => {
+    if (isUploading) return; // Prevent double-clicks
+    
     if (selectedFile && previewUrl) {
       setIsUploading(true);
       onFileSelect(selectedFile, previewUrl);
@@ -215,7 +217,10 @@ export function FileUploadComponent({
         setIsDragging(true);
       }}
       onDragLeave={() => setIsDragging(false)}
-      onClick={() => fileInputRef.current?.click()}
+      onClick={(e) => {
+        e.stopPropagation();
+        fileInputRef.current?.click();
+      }}
     >
       <div className="text-center space-y-4">
         <motion.div 
@@ -245,6 +250,7 @@ export function FileUploadComponent({
           type="file"
           accept={config.accept}
           onChange={handleFileInputChange}
+          onClick={(e) => e.stopPropagation()}
           className="hidden"
         />
       </div>

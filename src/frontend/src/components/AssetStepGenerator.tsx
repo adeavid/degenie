@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Wand2, 
   Upload as UploadIcon, 
   SkipForward, 
-  ArrowRight,
   Loader2,
   Image as ImageIcon,
   Film,
@@ -16,7 +15,6 @@ import {
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { FileUploadComponent } from './FileUploadComponent';
 import { cn } from '@/lib/utils';
@@ -101,6 +99,7 @@ export function AssetStepGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
   const [uploadedAsset, setUploadedAsset] = useState<UploadedAsset | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const config = assetConfig[assetType];
 
@@ -186,9 +185,14 @@ export function AssetStepGenerator({
   };
 
   const confirmAsset = () => {
+    if (isConfirming) return; // Prevent double-clicks
+    
     const asset = generatedAsset || uploadedAsset;
     if (asset) {
+      setIsConfirming(true);
       onAssetComplete(asset);
+      // Reset after completion
+      setTimeout(() => setIsConfirming(false), 1000);
     }
   };
 
@@ -429,10 +433,23 @@ export function AssetStepGenerator({
           <div className="flex space-x-3">
             <Button 
               onClick={confirmAsset}
-              className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              disabled={isConfirming}
+              className={cn(
+                "flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700",
+                isConfirming && "opacity-50 cursor-not-allowed"
+              )}
             >
-              <Check className="w-4 h-4 mr-2" />
-              Use This {config.name}
+              {isConfirming ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Using {config.name}...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Use This {config.name}
+                </>
+              )}
             </Button>
             <Button 
               onClick={() => {
