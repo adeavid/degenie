@@ -14,20 +14,28 @@ const connectors = [
 ];
 
 // Only add WalletConnect if we have a valid project ID
+// Note: Temporarily commenting out WalletConnect due to type compatibility issues
+// TODO: Fix WalletConnect integration with wagmi 2.x
+/*
 if (projectId && projectId !== 'your_project_id_here' && projectId !== '') {
-  connectors.push(
-    walletConnect({
-      projectId,
-      showQrModal: true,
-      metadata: {
-        name: 'DeGenie',
-        description: 'AI-powered token creation platform',
-        url: 'https://degenie.ai',
-        icons: ['https://degenie.ai/logo.png']
-      }
-    })
-  );
+  try {
+    connectors.push(
+      walletConnect({
+        projectId,
+        showQrModal: true,
+        metadata: {
+          name: 'DeGenie',
+          description: 'AI-powered token creation platform',
+          url: 'https://degenie.ai',
+          icons: ['https://degenie.ai/logo.png']
+        }
+      })
+    );
+  } catch (error) {
+    console.warn('Failed to initialize WalletConnect:', error);
+  }
 }
+*/
 
 export const wagmiConfig = createConfig({
   chains: [mainnet, base, arbitrum, polygon, optimism],

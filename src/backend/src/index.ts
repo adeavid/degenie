@@ -12,7 +12,7 @@ dotenv.config();
 // Import routes
 import aiRoutes from '../routes/ai.routes';
 import authRoutes from '../routes/auth.routes';
-// import tokenRoutes from './routes/token.routes';
+import tokenRoutes from '../routes/token.routes';
 
 // Import services for initialization
 import { CreditService } from '../services/CreditService';
@@ -62,7 +62,7 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/ai', aiRoutes);
 app.use('/api/auth', authRoutes);
-// app.use('/api/tokens', tokenRoutes);
+app.use('/api/tokens', tokenRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

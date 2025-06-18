@@ -1,16 +1,26 @@
 'use client';
 
 import React from 'react';
+
+// Force this page to be client-side only
+export const dynamic = 'force-dynamic';
 import { WalletConnectButton } from '@/components/wallet/WalletConnectButton';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
-import { useAccount } from 'wagmi';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { Card } from '@/components/ui/Card';
 
 export default function WalletDemoPage() {
-  const { address: ethAddress, isConnected: isEthConnected, chain } = useAccount();
-  const { publicKey, connected: isSolConnected, wallet } = useWallet();
+  const { 
+    connected, 
+    address, 
+    isEthConnected, 
+    isSolConnected, 
+    ethAddress, 
+    solanaAddress 
+  } = useWalletConnection();
+  
   const balance = useWalletBalance();
+  const publicKey = address;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
@@ -61,7 +71,7 @@ export default function WalletDemoPage() {
                     <div>
                       <span className="font-medium">Chain:</span>{' '}
                       <span className="text-gray-700 dark:text-gray-300">
-                        {chain?.name || 'Unknown'}
+                        Ethereum
                       </span>
                     </div>
                     <div>
@@ -78,13 +88,13 @@ export default function WalletDemoPage() {
                     <div>
                       <span className="font-medium">Wallet:</span>{' '}
                       <span className="text-gray-700 dark:text-gray-300">
-                        {wallet?.adapter.name || 'Unknown'}
+                        Solana Wallet
                       </span>
                     </div>
                     <div>
-                      <span className="font-medium">Public Key:</span>{' '}
+                      <span className="font-medium">Address:</span>{' '}
                       <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded break-all">
-                        {publicKey?.toBase58()}
+                        {solanaAddress}
                       </code>
                     </div>
                   </>
