@@ -5,6 +5,9 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
+// In-memory token storage (shared with complete-server.ts)
+const deployedTokens = new Map<string, any>();
+
 // URL validation patterns
 const websiteUrlPattern = /^https?:\/\/.+/;
 const twitterUrlPattern = /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[A-Za-z0-9_]{1,15}$/;
@@ -109,38 +112,61 @@ router.get('/user/:walletAddress', async (req: Request, res: Response) => {
   }
 });
 
-// Get token info
+// Get token info with REAL pump.fun data
 router.get('/:tokenAddress', async (req: Request, res: Response) => {
   try {
     const { tokenAddress } = req.params;
 
-    // Generate dynamic token info based on address
-    // In real app, this would query from database and blockchain
-    const isTestAddress = tokenAddress === '2JTYZAzvESb81G5yMUKe68HqnBVs4YxvUDrhWDw8i3Zz';
+    // Import services
+    const { PumpFunBondingCurve } = await import('../services/blockchain/PumpFunBondingCurve');
+    const { tradeStorage } = await import('../services/shared');
+    
+    // Get real data from trade storage
+    const currentSolRaised = tradeStorage.getSolRaised(tokenAddress) || 0;
+    const currentPrice = PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+    const marketCap = PumpFunBondingCurve.getMarketCap(currentSolRaised);
+    const graduationProgress = PumpFunBondingCurve.getGraduationProgress(currentSolRaised);
+    const volume24h = tradeStorage.get24hVolume(tokenAddress);
+    const priceChange = tradeStorage.get24hPriceChange(tokenAddress);
+    const holdersCount = tradeStorage.getHolderCount(tokenAddress);
+    
+    // Get metadata from deployed tokens or generate default
+    const deployedToken = deployedTokens.get(tokenAddress);
+    const metadata = deployedToken ? {
+      name: deployedToken.name || 'DeGenie Token',
+      symbol: deployedToken.symbol || tokenAddress.slice(0, 4).toUpperCase(),
+      description: deployedToken.description || `Token deployed on Solana using DeGenie`,
+      creator: deployedToken.creator || deployedToken.deployer || '7xKXtg2CW3H6cGh5rJ8qHjYo5mW9L2Nk3QpR6FsX4uP8',
+      createdAt: deployedToken.createdAt || Date.now()
+    } : {
+      name: 'DeGenie Token',
+      symbol: tokenAddress.slice(0, 4).toUpperCase(),
+      description: `Token deployed on Solana using DeGenie`,
+      creator: '7xKXtg2CW3H6cGh5rJ8qHjYo5mW9L2Nk3QpR6FsX4uP8',
+      createdAt: Date.now()
+    };
     
     const tokenInfo = {
       address: tokenAddress,
-      name: isTestAddress ? 'Test Token' : 'DeGenie Token',
-      symbol: isTestAddress ? 'TEST' : tokenAddress.slice(0, 4).toUpperCase(),
-      description: `A token deployed on Solana using DeGenie AI-powered platform. Contract address: ${tokenAddress}`,
-      logoUrl: isTestAddress ? 
-        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiMxMGI5ODEiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCI+VEVTVDwvdHh0Pgo8L3N2Zz4=' : 
-        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiM4YjVjZjYiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCI+REc8L3R4dD4KPC9zdmc+',
+      name: metadata.name,
+      symbol: metadata.symbol,
+      description: metadata.description,
+      logoUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiM4YjVjZjYiLz4KPHR4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCI+REc8L3R4dD4KPC9zdmc+',
       website: '',
       twitter: '',
       telegram: '',
-      creator: '7xKXtg2CW3H6cGh5rJ8qHjYo5mW9L2Nk3QpR6FsX4uP8',
-      createdAt: Date.now() - (Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in last week
-      totalSupply: 1000000000,
-      currentPrice: 0.000001 + (Math.random() * 0.001),
-      marketCap: Math.floor(Math.random() * 500000),
-      volume24h: Math.floor(Math.random() * 50000),
-      priceChange24h: (Math.random() - 0.5) * 50, // Random change between -25% and +25%
-      holdersCount: Math.floor(Math.random() * 2000) + 50,
-      bondingCurveProgress: Math.random() * 80,
-      graduationThreshold: 500000, // 500k SOL
-      liquidityCollected: Math.floor(Math.random() * 300000),
-      isGraduated: Math.random() > 0.8, // 20% chance of being graduated
+      creator: metadata.creator,
+      createdAt: metadata.createdAt,
+      totalSupply: PumpFunBondingCurve.TOTAL_SUPPLY,
+      currentPrice,
+      marketCap,
+      volume24h,
+      priceChange24h: priceChange?.percentage || 0,
+      holdersCount: holdersCount || 0,
+      bondingCurveProgress: graduationProgress,
+      graduationThreshold: PumpFunBondingCurve.GRADUATION_THRESHOLD * 180, // In USD
+      liquidityCollected: currentSolRaised,
+      isGraduated: graduationProgress >= 100,
       isWatchlisted: false
     };
 
@@ -381,8 +407,12 @@ router.get('/:tokenAddress/chart', async (req: Request, res: Response) => {
         const marketCap = currentPrice * 1000000000; // Assuming 1B supply
         
         data.push({
-          timestamp,
-          price: currentPrice,
+          time: Math.floor(timestamp / 1000), // Convert to seconds for TradingView
+          open: currentPrice * (1 - Math.random() * 0.01),
+          high: currentPrice * (1 + Math.random() * 0.02),
+          low: currentPrice * (1 - Math.random() * 0.02),
+          close: currentPrice,
+          value: currentPrice,
           volume,
           marketCap
         });

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -90,6 +91,15 @@ interface Comment {
 export default function TokenPage() {
   const params = useParams();
   const { connected, publicKey } = useWalletConnection();
+  const { 
+    subscribeToToken, 
+    unsubscribeFromToken, 
+    onTradeUpdate, 
+    onPriceUpdate,
+    onGraduation,
+    connected: wsConnected 
+  } = useWebSocket();
+  
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [holders, setHolders] = useState<Holder[]>([]);
@@ -110,8 +120,95 @@ export default function TokenPage() {
       loadTrades();
       loadHolders();
       loadComments();
+      
+      // Subscribe to WebSocket updates
+      if (wsConnected) {
+        subscribeToToken(tokenAddress);
+      }
     }
-  }, [tokenAddress]);
+    
+    // Cleanup
+    return () => {
+      if (tokenAddress && wsConnected) {
+        unsubscribeFromToken(tokenAddress);
+      }
+    };
+  }, [tokenAddress, wsConnected]);
+  
+  // Listen for trade updates
+  useEffect(() => {
+    if (!wsConnected) return;
+    
+    const cleanup = onTradeUpdate((update) => {
+      if (update.tokenAddress === tokenAddress) {
+        // Add new trade to the beginning of the list
+        setTrades(prev => [update.trade, ...prev]);
+        
+        // Update token data with new price if available
+        if (update.newPrice && tokenData) {
+          setTokenData(prev => prev ? {
+            ...prev,
+            currentPrice: update.newPrice,
+            bondingCurveProgress: update.graduationProgress
+          } : null);
+        }
+        
+        // Chart will update automatically via its own interval - no forced re-render needed
+        
+        // Show toast for large trades
+        if (update.trade.solAmount >= 1) {
+          toast.success(
+            `Big ${update.trade.type}! ${formatNumber(update.trade.tokenAmount)} ${tokenData?.symbol} for ${formatPrice(update.trade.solAmount)}`,
+            { duration: 5000 }
+          );
+        }
+      }
+    });
+    
+    return cleanup;
+  }, [wsConnected, tokenAddress, tokenData?.symbol]);
+  
+  // Listen for price updates
+  useEffect(() => {
+    if (!wsConnected) return;
+    
+    const cleanup = onPriceUpdate((update) => {
+      if (update.tokenAddress === tokenAddress) {
+        setTokenData(prev => prev ? {
+          ...prev,
+          currentPrice: update.price,
+          priceChange24h: update.priceChange24h,
+          volume24h: update.volume24h,
+          marketCap: update.marketCap,
+          bondingCurveProgress: update.bondingCurveProgress
+        } : null);
+      }
+    });
+    
+    return cleanup;
+  }, [wsConnected, tokenAddress]);
+  
+  // Listen for graduation events
+  useEffect(() => {
+    if (!wsConnected) return;
+    
+    const cleanup = onGraduation((event) => {
+      if (event.tokenAddress === tokenAddress) {
+        setTokenData(prev => prev ? {
+          ...prev,
+          isGraduated: true,
+          bondingCurveProgress: 100
+        } : null);
+        
+        toast.success(
+          `🎓 ${tokenData?.name} has graduated! Liquidity: ${formatPrice(event.totalLiquidity)}`,
+          { duration: 10000 }
+        );
+      }
+    });
+    
+    return cleanup;
+  }, [wsConnected, tokenAddress, tokenData?.name]);
 
   const loadTokenData = async () => {
     try {
@@ -373,7 +470,7 @@ export default function TokenPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Column - Chart & Activity */}
           <div className="lg:col-span-3 space-y-6">
-            {/* TradingView Chart */}
+            {/* TradingView Chart - Real trades only, no fake data */}
             <TradingViewChart 
               tokenAddress={tokenAddress} 
               symbol={tokenData.symbol}
@@ -465,9 +562,11 @@ export default function TokenPage() {
             <EnhancedTradingInterface 
               tokenData={tokenData}
               onTradeComplete={() => {
+                console.log('🔄 Trade completed, refreshing data...');
                 loadTokenData();
                 loadTrades();
                 loadHolders();
+                // Chart will update automatically via WebSocket
               }}
             />
 

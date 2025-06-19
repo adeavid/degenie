@@ -4,7 +4,7 @@
   "description": "DeGenie Backend API",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node",
+    "dev": "nodemon --exec ts-node src/complete-server.ts",
     "dev:main": "npm run dev -- src/index.ts",
     "dev:simple": "npm run dev -- src/simple-server.ts",
     "dev:test": "npm run dev -- src/test-server.ts",
@@ -26,6 +26,7 @@
   "dependencies": {
     "@metaplex-foundation/js": "^0.20.1",
     "@prisma/client": "^5.7.0",
+    "@coral-xyz/anchor": "^0.30.1",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.98.2",
     "axios": "^1.9.0",
@@ -39,6 +40,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "replicate": "^0.25.1",
+    "socket.io": "^4.7.2",
     "together-ai": "^0.5.0",
     "uuid": "^9.0.1",
     "zod": "^3.22.4"

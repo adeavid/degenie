@@ -49,6 +49,8 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
   const [showSlippageSettings, setShowSlippageSettings] = useState(false);
   const [isTrading, setIsTrading] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [calculatingPreview, setCalculatingPreview] = useState(false);
+  const [lastCalculation, setLastCalculation] = useState<{ amount: string; type: string }>({ amount: '', type: '' });
 
   const handleQuickBuy = (amount: number) => {
     setSolAmount(amount.toString());
@@ -56,12 +58,31 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
   };
 
   const calculatePreview = async (type: 'buy' | 'sell', solAmount: string, tokenAmount: string) => {
-    if (!solAmount && !tokenAmount) return;
+    const currentAmount = solAmount || tokenAmount;
+    
+    // Avoid recalculating same values
+    if (lastCalculation.amount === currentAmount && lastCalculation.type === type) {
+      return;
+    }
+    
+    if (!currentAmount) {
+      setPreviewData(null);
+      // Clear the output field
+      if (type === 'buy') {
+        setTokenAmount('');
+      } else {
+        setSolAmount('');
+      }
+      return;
+    }
 
+    setLastCalculation({ amount: currentAmount, type });
+    setCalculatingPreview(true);
+    
     try {
       const response = await apiService.calculateTrade({
         tokenAddress: tokenData.address,
-        amount: parseFloat(solAmount || tokenAmount),
+        amount: parseFloat(currentAmount),
         type,
         inputType: solAmount ? 'sol' : 'token',
         slippage
@@ -69,9 +90,24 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
 
       if (response.data) {
         setPreviewData(response.data);
+        
+        // Update the output field with calculated amount
+        if (type === 'buy' && response.data.expectedTokens) {
+          setTokenAmount(response.data.expectedTokens.toFixed(2));
+        } else if (type === 'sell' && response.data.expectedSol) {
+          setSolAmount(response.data.expectedSol.toFixed(6));
+        }
       }
     } catch (error) {
       console.error('Preview calculation failed:', error);
+      // Clear output on error
+      if (type === 'buy') {
+        setTokenAmount('');
+      } else {
+        setSolAmount('');
+      }
+    } finally {
+      setCalculatingPreview(false);
     }
   };
 
@@ -95,17 +131,20 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
         solAmount: solAmount ? parseFloat(solAmount) : undefined,
         tokenAmount: tokenAmount ? parseFloat(tokenAmount) : undefined,
         slippage,
-        walletAddress: publicKey?.toBase58() || ''
+        walletAddress: publicKey?.toString() || ''
       });
 
-      if (response.data?.success) {
-        toast.success(`${tradeType === 'buy' ? 'Bought' : 'Sold'} successfully!`);
+      if (response.data && response.data) {
+        const tradeData = response.data;
+        toast.success(`${tradeType === 'buy' ? 'Bought' : 'Sold'} successfully! 
+          ${tradeType === 'buy' ? `Got ${tradeData.tokenAmount?.toFixed(2)} tokens` : `Got ${tradeData.solAmount?.toFixed(6)} SOL`}`);
         setSolAmount('');
         setTokenAmount('');
         setPreviewData(null);
-        onTradeComplete();
+        onTradeComplete(); // This should refresh the page data
       } else {
-        toast.error('Trade failed');
+        console.error('Trade response:', response);
+        toast.error('Trade failed - check console for details');
       }
     } catch (error) {
       console.error('Trade execution failed:', error);
@@ -269,7 +308,7 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
               <div className="relative">
                 <Input
                   type="number"
-                  placeholder="0.00"
+                  placeholder={calculatingPreview ? "Calculating..." : "0.00"}
                   value={tradeType === 'buy' ? tokenAmount : solAmount}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -281,6 +320,7 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
                   }}
                   className="h-14 text-lg font-bold bg-gray-800/50 border-gray-600 focus:border-purple-500 pl-12"
                   readOnly
+                  disabled={calculatingPreview}
                 />
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
                   {tradeType === 'buy' ? (
@@ -302,6 +342,12 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
             >
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
+                  <span className="text-gray-400">Price per token:</span>
+                  <span className="text-white font-medium">
+                    {formatPrice(tokenData.currentPrice || 0.00000003)} SOL
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-400">Price Impact:</span>
                   <span className={cn(
                     "font-medium",
@@ -313,13 +359,13 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
                 <div className="flex justify-between">
                   <span className="text-gray-400">Min Received:</span>
                   <span className="text-white font-medium">
-                    {formatNumber(previewData.minReceived)}
+                    {formatNumber(previewData.minReceived || 0)} {tradeType === 'buy' ? tokenData.symbol : 'SOL'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Network Fee:</span>
+                  <span className="text-gray-400">Platform Fee (1%):</span>
                   <span className="text-white font-medium">
-                    {formatPrice(previewData.fees)} SOL
+                    {formatPrice(previewData.fees || 0.0005)} SOL
                   </span>
                 </div>
               </div>

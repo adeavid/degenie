@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, HistogramData, CandlestickSeriesPartialOptions, HistogramSeriesPartialOptions, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, HistogramData, Time, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -9,7 +9,7 @@ import {
   BarChart3, 
   Maximize2,
   Settings,
-  Volume2,
+  BarChart3 as VolumeIcon,
   Activity,
   Zap
 } from 'lucide-react';
@@ -40,18 +40,191 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const isMountedRef = useRef(true);
+  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const [selectedTimeframe, setSelectedTimeframe] = useState('15m');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [priceChange, setPriceChange] = useState({ change: 0, percentage: 0 });
-  const [currentPrice, setCurrentPrice] = useState(0);
+  const [currentPrice, setCurrentPrice] = useState(0.000069);
   const [volume24h, setVolume24h] = useState(0);
+  const [hasData, setHasData] = useState(false); // Start with no data assumption
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Cleanup function
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    isMountedRef.current = true;
+    
+    return () => {
+      isMountedRef.current = false;
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
+      }
+    };
+  }, []);
 
-    // Create the chart with TradingView styling
+  // Persistent chart data - maintains across re-renders
+  const chartDataRef = useRef<{
+    candleData: CandlestickData[];
+    volumeData: HistogramData[];
+    lastGenerated: number;
+  } | null>(null);
+
+  // Generate initial data for new tokens (only the current price candle)
+  const generateInitialData = useCallback((price: number = 0.000069) => {
+    const now = Math.floor(Date.now() / 1000);
+    const data: CandlestickData[] = [];
+    const volumeData: HistogramData[] = [];
+    
+    // Only show current price as a single candle (like pump.fun)
+    data.push({
+      time: now as Time,
+      open: price,
+      high: price,
+      low: price,
+      close: price
+    });
+    
+    volumeData.push({
+      time: now as Time,
+      value: 0,
+      color: '#10b981'
+    });
+    
+    return { candleData: data, volumeData };
+  }, []);
+
+  // Load chart data
+  const loadChartData = useCallback(async () => {
+    if (!isMountedRef.current || !candlestickSeriesRef.current || !chartRef.current) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tokens/${tokenAddress}/chart?timeframe=${selectedTimeframe}&limit=100`
+      );
+      
+      if (!isMountedRef.current) return;
+      
+      const data = await response.json();
+      
+      if (!data.success || !data.data || data.data.length === 0) {
+        // For new tokens with no trades, show single candle at current price
+        console.log('📊 No trades yet, showing initial price candle');
+        
+        // Get current price from token data or use initial price
+        const currentTokenPrice = data.currentPrice || 0.000069;
+        const { candleData, volumeData } = generateInitialData(currentTokenPrice);
+        
+        if (candlestickSeriesRef.current && isMountedRef.current) {
+          try {
+            candlestickSeriesRef.current.setData(candleData);
+            
+            if (volumeSeriesRef.current && showVolume) {
+              volumeSeriesRef.current.setData(volumeData);
+            }
+            
+            // Update stats
+            setCurrentPrice(currentTokenPrice);
+            setPriceChange({ change: 0, percentage: 0 });
+            setVolume24h(0);
+            setHasData(false); // Show "New Token Alert" overlay
+          } catch (e) {
+            console.log('Chart update skipped - component unmounted');
+          }
+        }
+        return;
+      }
+      
+      const candles = data.data;
+      const candleData: CandlestickData[] = [];
+      const volumeData: HistogramData[] = [];
+      
+      console.log(`📊 Received ${candles.length} candles from backend`);
+      setHasData(candles.length > 0);
+      
+      // If no candles, the chart will show "New Token Alert"
+      
+      // Convert API data to chart format
+      candles.forEach((candle: any) => {
+        candleData.push({
+          time: candle.time as Time,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close
+        });
+        
+        volumeData.push({
+          time: candle.time as Time,
+          value: candle.volume,
+          color: candle.close > candle.open ? '#10b981' : '#ef4444'
+        });
+      });
+      
+      // Update chart only if still mounted
+      if (candlestickSeriesRef.current && isMountedRef.current) {
+        try {
+          candlestickSeriesRef.current.setData(candleData);
+          
+          if (volumeSeriesRef.current && showVolume) {
+            volumeSeriesRef.current.setData(volumeData);
+          }
+          
+          // Calculate stats
+          if (candleData.length > 0) {
+            const last = candleData[candleData.length - 1];
+            setCurrentPrice(last.close);
+            
+            // Calculate 24h change if we have enough data
+            if (candleData.length > 1) {
+              const first = candleData[0];
+              const change = last.close - first.open;
+              const percentage = (change / first.open) * 100;
+              setPriceChange({ change, percentage });
+            } else {
+              setPriceChange({ change: 0, percentage: 0 });
+            }
+            
+            setVolume24h(volumeData.reduce((sum, v) => sum + v.value, 0));
+          }
+          
+          // Fit content
+          if (chartRef.current && isMountedRef.current) {
+            chartRef.current.timeScale().fitContent();
+          }
+        } catch (e) {
+          console.log('Chart update skipped - chart disposed');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chart data:', error);
+      setHasData(false);
+      // Show single candle at current price on error
+      if (isMountedRef.current) {
+        const { candleData, volumeData } = generateInitialData(currentPrice);
+        
+        if (candlestickSeriesRef.current) {
+          try {
+            candlestickSeriesRef.current.setData(candleData);
+            if (volumeSeriesRef.current && showVolume) {
+              volumeSeriesRef.current.setData(volumeData);
+            }
+          } catch (e) {
+            console.log('Chart update skipped on error');
+          }
+        }
+      }
+    }
+  }, [tokenAddress, selectedTimeframe, showVolume, generateInitialData]);
+
+  // Initialize chart
+  useEffect(() => {
+    if (!chartContainerRef.current || !isMountedRef.current) return;
+
+    // Create the chart
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: isFullscreen ? window.innerHeight - 100 : 500,
@@ -91,7 +264,6 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
       },
       timeScale: {
         borderColor: '#374151',
-        textColor: '#d1d5db',
         timeVisible: true,
         secondsVisible: false,
       },
@@ -107,10 +279,10 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
     chartRef.current = chart;
 
-    // Add candlestick series with pump.fun colors
+    // Add candlestick series
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981', // Green for bullish candles
-      downColor: '#ef4444', // Red for bearish candles
+      upColor: '#10b981',
+      downColor: '#ef4444',
       borderDownColor: '#ef4444',
       borderUpColor: '#10b981',
       wickDownColor: '#ef4444',
@@ -132,20 +304,23 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
           type: 'volume',
         },
         priceScaleId: '',
-        scaleMargins: {
-          top: 0.7,
-          bottom: 0,
-        },
       });
       volumeSeriesRef.current = volumeSeries;
     }
 
-    // Generate realistic mock data
-    generateMockData();
+    // Load initial data
+    loadChartData();
+
+    // Set up auto-update interval (less frequent, like real trading charts)
+    updateIntervalRef.current = setInterval(() => {
+      if (isMountedRef.current) {
+        loadChartData();
+      }
+    }, 5000); // Update every 5 seconds for real-time data
 
     // Handle resize
     const handleResize = () => {
-      if (chart && chartContainerRef.current) {
+      if (chart && chartContainerRef.current && isMountedRef.current) {
         chart.applyOptions({
           width: chartContainerRef.current.clientWidth,
           height: isFullscreen ? window.innerHeight - 100 : 500,
@@ -155,95 +330,29 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
     window.addEventListener('resize', handleResize);
 
+    // Cleanup
     return () => {
+      isMountedRef.current = false;
       window.removeEventListener('resize', handleResize);
+      
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
+        updateIntervalRef.current = null;
+      }
+      
       if (chart) {
-        chart.remove();
+        try {
+          chart.remove();
+        } catch (e) {
+          console.log('Chart already removed');
+        }
       }
+      
+      chartRef.current = null;
+      candlestickSeriesRef.current = null;
+      volumeSeriesRef.current = null;
     };
-  }, [tokenAddress, selectedTimeframe, isFullscreen, showVolume, symbol]);
-
-  const generateMockData = () => {
-    if (!candlestickSeriesRef.current) return;
-
-    const timeframe = timeframes.find(tf => tf.value === selectedTimeframe);
-    const intervalMinutes = timeframe?.minutes || 15;
-    const now = Math.floor(Date.now() / 1000);
-    const intervalSeconds = intervalMinutes * 60;
-    
-    // Generate 100 candles
-    const candleCount = 100;
-    const startTime = now - (candleCount * intervalSeconds);
-    
-    const candleData: CandleData[] = [];
-    const volumeData: HistogramData[] = [];
-    
-    let basePrice = 0.000001234; // Starting price
-    let trend = 1; // 1 for up, -1 for down
-    let trendDuration = 0;
-    
-    for (let i = 0; i < candleCount; i++) {
-      const time = startTime + (i * intervalSeconds);
-      
-      // Change trend randomly
-      trendDuration++;
-      if (trendDuration > Math.random() * 10 + 5) {
-        trend = Math.random() > 0.6 ? 1 : -1; // 60% chance for bullish
-        trendDuration = 0;
-      }
-      
-      // Generate OHLC with realistic patterns
-      const volatility = 0.05; // 5% volatility
-      const trendStrength = trend * (Math.random() * 0.02 + 0.005);
-      
-      const open = basePrice;
-      const change = open * (trendStrength + (Math.random() - 0.5) * volatility);
-      const close = Math.max(open + change, 0.0000000001);
-      
-      // Generate high and low
-      const maxMove = Math.abs(close - open) * 2;
-      const high = Math.max(open, close) + (Math.random() * maxMove);
-      const low = Math.min(open, close) - (Math.random() * maxMove * 0.7);
-      
-      // Generate volume
-      const volume = (Math.random() * 50 + 10) * (trend > 0 ? 1.2 : 0.8);
-      
-      candleData.push({
-        time: time as any,
-        open,
-        high,
-        low,
-        close,
-        volume
-      });
-      
-      volumeData.push({
-        time: time as any,
-        value: volume,
-        color: close > open ? '#10b981' : '#ef4444'
-      });
-      
-      basePrice = close;
-    }
-    
-    // Set data to series
-    candlestickSeriesRef.current.setData(candleData);
-    if (volumeSeriesRef.current && showVolume) {
-      volumeSeriesRef.current.setData(volumeData);
-    }
-    
-    // Calculate stats
-    if (candleData.length > 1) {
-      const first = candleData[0];
-      const last = candleData[candleData.length - 1];
-      const change = last.close - first.open;
-      const percentage = (change / first.open) * 100;
-      
-      setPriceChange({ change, percentage });
-      setCurrentPrice(last.close);
-      setVolume24h(volumeData.reduce((sum, v) => sum + v.value, 0));
-    }
-  };
+  }, [tokenAddress, selectedTimeframe, isFullscreen, showVolume, symbol, loadChartData]);
 
   const formatPrice = (price: number) => {
     if (price < 0.000001) {
@@ -254,7 +363,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
   const formatVolume = (volume: number) => {
     if (volume > 1000) return `${(volume / 1000).toFixed(1)}K`;
-    return volume.toFixed(1);
+    return volume.toFixed(3);
   };
 
   const toggleFullscreen = () => {
@@ -274,61 +383,71 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
           <div className="flex items-center space-x-3">
             <div>
               <div className="flex items-center space-x-2">
-                <span className="text-xl font-bold text-white">
-                  {formatPrice(currentPrice)}
+                <span className="text-2xl font-bold text-white">
+                  ${formatPrice(currentPrice)}
                 </span>
-                <div className={cn(
-                  "flex items-center text-sm font-medium",
-                  priceChange.percentage >= 0 ? "text-green-400" : "text-red-400"
-                )}>
-                  {priceChange.percentage >= 0 ? (
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4 mr-1" />
-                  )}
-                  {priceChange.percentage >= 0 ? '+' : ''}
-                  {priceChange.percentage.toFixed(2)}%
-                </div>
+                {priceChange.percentage !== 0 && (
+                  <div className={cn(
+                    "flex items-center space-x-1 px-2 py-1 rounded-lg text-sm font-medium",
+                    priceChange.percentage > 0 
+                      ? "bg-green-500/20 text-green-400" 
+                      : "bg-red-500/20 text-red-400"
+                  )}>
+                    {priceChange.percentage > 0 ? (
+                      <TrendingUp className="w-3 h-3" />
+                    ) : (
+                      <TrendingDown className="w-3 h-3" />
+                    )}
+                    <span>{Math.abs(priceChange.percentage).toFixed(2)}%</span>
+                  </div>
+                )}
               </div>
-              <div className="text-sm text-gray-400">
-                24h Vol: {formatVolume(volume24h)} SOL
+              <div className="flex items-center space-x-4 text-sm text-gray-400 mt-1">
+                <span>Vol: ${formatVolume(volume24h)}</span>
+                <span>24h: {priceChange.change > 0 ? '+' : ''}{formatPrice(priceChange.change)}</span>
               </div>
             </div>
           </div>
 
           {/* Timeframe Selector */}
-          <div className="flex rounded-lg bg-gray-800 p-1">
-            {timeframes.map((timeframe) => (
+          <div className="flex items-center space-x-1 bg-gray-800/50 rounded-lg p-1">
+            {timeframes.map((tf) => (
               <Button
-                key={timeframe.value}
-                onClick={() => setSelectedTimeframe(timeframe.value)}
-                variant={selectedTimeframe === timeframe.value ? 'default' : 'ghost'}
+                key={tf.value}
+                onClick={() => setSelectedTimeframe(tf.value)}
+                variant="ghost"
                 size="sm"
-                className="h-7 px-3 text-xs font-medium"
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                  selectedTimeframe === tf.value
+                    ? "bg-green-500/20 text-green-400"
+                    : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+                )}
               >
-                {timeframe.label}
+                {tf.label}
               </Button>
             ))}
           </div>
         </div>
 
-        {/* Chart Controls */}
+        {/* Controls */}
         <div className="flex items-center space-x-2">
           <Button
             onClick={() => setShowVolume(!showVolume)}
-            variant={showVolume ? 'default' : 'outline'}
+            variant="ghost"
             size="sm"
-            className="h-8 px-3"
+            className={cn(
+              "text-gray-400",
+              showVolume && "text-green-400"
+            )}
           >
-            <Volume2 className="w-4 h-4 mr-1" />
-            Volume
+            <VolumeIcon className="w-4 h-4" />
           </Button>
-          
           <Button
             onClick={toggleFullscreen}
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="h-8 px-3 border-gray-600"
+            className="text-gray-400"
           >
             <Maximize2 className="w-4 h-4" />
           </Button>
@@ -337,47 +456,33 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
       {/* Chart Container */}
       <div 
-        ref={chartContainerRef}
-        className="relative"
-        style={{ 
-          height: isFullscreen ? 'calc(100vh - 180px)' : '500px'
-        }}
+        ref={chartContainerRef} 
+        className="relative w-full"
+        style={{ height: isFullscreen ? 'calc(100vh - 100px)' : '500px' }}
       />
 
-      {/* Chart Footer */}
-      <div className="flex items-center justify-between p-3 bg-gray-900/30 border-t border-gray-800 text-xs text-gray-400">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1">
-            <Activity className="w-3 h-3" />
-            <span>Real-time data</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Zap className="w-3 h-3" />
-            <span>TradingView Powered</span>
-          </div>
-        </div>
-        
-        <div className="text-gray-500">
-          {symbol.toUpperCase()}/SOL • DeGenie
-        </div>
-      </div>
-
       {/* Loading Overlay */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ delay: 1, duration: 0.5 }}
-        className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-none"
-      >
-        <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full mx-auto mb-3"
-          />
-          <p className="text-gray-400 text-sm">Loading chart...</p>
+      {isLoading && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="text-center">
+            <Activity className="w-8 h-8 text-green-400 animate-pulse mx-auto mb-2" />
+            <p className="text-sm text-gray-400">Loading chart data...</p>
+          </div>
         </div>
-      </motion.div>
+      )}
+
+      {/* No Data Message */}
+      {!hasData && !isLoading && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+          <div className="text-center p-8">
+            <Zap className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">New Token Alert!</h3>
+            <p className="text-sm text-gray-400 max-w-xs">
+              This token was just created. Chart will populate as trades come in.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

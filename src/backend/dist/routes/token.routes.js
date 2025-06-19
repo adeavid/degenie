@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const zod_1 = require("zod");
@@ -106,6 +139,10 @@ router.get('/user/:walletAddress', async (req, res) => {
 router.get('/:tokenAddress', async (req, res) => {
     try {
         const { tokenAddress } = req.params;
+        // Import bonding curve service
+        const { bondingCurveService } = await Promise.resolve().then(() => __importStar(require('../services/blockchain/BondingCurveService')));
+        // Try to get real metrics from bonding curve
+        const metrics = await bondingCurveService.getTokenMetrics(tokenAddress);
         // Generate dynamic token info based on address
         // In real app, this would query from database and blockchain
         const isTestAddress = tokenAddress === '2JTYZAzvESb81G5yMUKe68HqnBVs4YxvUDrhWDw8i3Zz';
@@ -122,16 +159,16 @@ router.get('/:tokenAddress', async (req, res) => {
             telegram: '',
             creator: '7xKXtg2CW3H6cGh5rJ8qHjYo5mW9L2Nk3QpR6FsX4uP8',
             createdAt: Date.now() - (Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in last week
-            totalSupply: 1000000000,
-            currentPrice: 0.000001 + (Math.random() * 0.001),
-            marketCap: Math.floor(Math.random() * 500000),
-            volume24h: Math.floor(Math.random() * 50000),
-            priceChange24h: (Math.random() - 0.5) * 50, // Random change between -25% and +25%
-            holdersCount: Math.floor(Math.random() * 2000) + 50,
-            bondingCurveProgress: Math.random() * 80,
+            totalSupply: metrics?.totalSupply || 1000000000,
+            currentPrice: metrics?.currentPrice || (0.000001 + (Math.random() * 0.001)),
+            marketCap: metrics?.marketCap || Math.floor(Math.random() * 500000),
+            volume24h: metrics?.volume24h || Math.floor(Math.random() * 50000),
+            priceChange24h: metrics?.priceChange24h || ((Math.random() - 0.5) * 50), // Random change between -25% and +25%
+            holdersCount: metrics?.holders || (Math.floor(Math.random() * 2000) + 50),
+            bondingCurveProgress: metrics?.bondingCurveProgress || (Math.random() * 80),
             graduationThreshold: 500000, // 500k SOL
-            liquidityCollected: Math.floor(Math.random() * 300000),
-            isGraduated: Math.random() > 0.8, // 20% chance of being graduated
+            liquidityCollected: metrics?.liquiditySOL || Math.floor(Math.random() * 300000),
+            isGraduated: metrics?.isGraduated || (Math.random() > 0.8), // 20% chance of being graduated
             isWatchlisted: false
         };
         console.log(`📊 [Token Info] Requested: ${tokenAddress}`);

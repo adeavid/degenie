@@ -387,12 +387,37 @@ class ApiService {
     slippage: number;
     walletAddress: string;
   }): Promise<ApiResponse<{
-    signature: string;
+    signature?: string;
     success: boolean;
+    trade?: any;
+    newPrice?: number;
+    tokenAmount?: number;
+    solAmount?: number;
+    graduationProgress?: number;
+    inputAmount?: number;
+    outputAmount?: number;
+    pricePerToken?: number;
+    fees?: any;
+    newSupply?: number;
+    priceImpact?: number;
   }>> {
-    return this.makeRequest(`/api/tokens/${params.tokenAddress}/trade`, {
+    // Use the correct endpoint based on trade type
+    const endpoint = `/api/tokens/${params.tokenAddress}/${params.type}`;
+    
+    // Prepare the payload based on trade type
+    const payload = params.type === 'buy' ? {
+      walletAddress: params.walletAddress,
+      solAmount: params.solAmount?.toString(),
+      slippage: params.slippage
+    } : {
+      walletAddress: params.walletAddress,
+      tokenAmount: params.tokenAmount?.toString(),
+      slippage: params.slippage
+    };
+    
+    return this.makeRequest(endpoint, {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
     });
   }
 

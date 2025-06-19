@@ -169,8 +169,14 @@ export function TradingInterface({ tokenData, onTradeComplete }: TradingInterfac
         walletAddress: publicKey?.toString() || ''
       });
 
-      if (response.data) {
-        toast.success(`${tradeType === 'buy' ? 'Bought' : 'Sold'} successfully!`);
+      if (response.data && !response.error) {
+        // Format success message with trade details
+        const { outputAmount, inputAmount, pricePerToken } = response.data;
+        const message = tradeType === 'buy' 
+          ? `Bought ${formatNumber(outputAmount || 0)} ${tokenData.symbol} for ${formatNumber(inputAmount || 0)} SOL`
+          : `Sold ${formatNumber(inputAmount || 0)} ${tokenData.symbol} for ${formatNumber(outputAmount || 0)} SOL`;
+        
+        toast.success(message);
         setSolAmount('');
         setTokenAmount('');
         setPreviewData(null);
