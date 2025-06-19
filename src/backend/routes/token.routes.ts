@@ -354,7 +354,9 @@ router.get('/:tokenAddress/comments', async (req: Request, res: Response) => {
   }
 });
 
-// Get token chart data
+// Get token chart data - DISABLED: Using real chart endpoint in complete-server.ts
+// This mock endpoint was causing issues by intercepting real chart requests
+/*
 router.get('/:tokenAddress/chart', async (req: Request, res: Response) => {
   try {
     const { tokenAddress } = req.params;
@@ -432,6 +434,7 @@ router.get('/:tokenAddress/chart', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch chart data' });
   }
 });
+*/
 
 // Trading endpoints
 
