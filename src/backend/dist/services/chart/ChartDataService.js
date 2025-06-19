@@ -8,7 +8,7 @@ class ChartDataService {
     /**
      * Add a new price point from a trade
      */
-    addPricePoint(tokenAddress, price, volume) {
+    addPricePoint(tokenAddress, price, volume, tradeType = 'buy') {
         if (!this.priceHistory.has(tokenAddress)) {
             this.priceHistory.set(tokenAddress, []);
         }
@@ -16,13 +16,15 @@ class ChartDataService {
         history.push({
             timestamp: Date.now(),
             price,
-            volume
+            volume,
+            type: tradeType
         });
         // Keep only last 24 hours of data
         const cutoff = Date.now() - (24 * 60 * 60 * 1000);
         this.priceHistory.set(tokenAddress, history.filter(p => p.timestamp > cutoff));
         // Clear candle cache for this token
         this.candleCache.delete(tokenAddress);
+        console.log(`📊 [ChartData] Added trade: ${tradeType} @ ${price} SOL, volume: ${volume}`);
     }
     /**
      * Get chart data for a token with specified timeframe
@@ -52,25 +54,51 @@ class ChartDataService {
         return { candles, lastUpdate: Date.now() };
     }
     /**
-     * Generate candles from price history
+     * Generate candles from price history - ONLY REAL TRADES
      */
     generateCandles(history, currentPrice, timeframe, limit) {
         const intervalMs = this.getIntervalMs(timeframe);
         const now = Date.now();
         const startTime = now - (limit * intervalMs);
         const candles = [];
-        // If no history, generate synthetic data based on current price
+        // If no history, return single initial candle from bonding curve (like pump.fun)
         if (history.length === 0) {
-            let price = currentPrice * 0.8; // Start 20% lower
-            const priceStep = (currentPrice - price) / limit;
-            for (let i = 0; i < limit; i++) {
-                const time = startTime + (i * intervalMs);
-                const variation = (Math.random() - 0.5) * 0.02; // 2% variation
-                const open = price;
-                const close = price + priceStep + (price * variation);
-                const high = Math.max(open, close) * (1 + Math.random() * 0.01);
-                const low = Math.min(open, close) * (1 - Math.random() * 0.01);
-                const volume = Math.random() * 10 + 1; // Random volume 1-11 SOL
+            // Return a single candle at current time with bonding curve price
+            const candleTime = Math.floor(now / 1000);
+            candles.push({
+                time: candleTime,
+                open: currentPrice,
+                high: currentPrice,
+                low: currentPrice,
+                close: currentPrice,
+                volume: 0
+            });
+            console.log(`📊 [ChartData] New token - returning initial candle at ${currentPrice}`);
+            return candles;
+        }
+        // Group real trades into candles
+        const groups = new Map();
+        history.forEach(point => {
+            const candleTime = Math.floor(point.timestamp / intervalMs) * intervalMs;
+            if (candleTime >= startTime) {
+                if (!groups.has(candleTime)) {
+                    groups.set(candleTime, []);
+                }
+                groups.get(candleTime).push(point);
+            }
+        });
+        // Only create candles where we have real trades
+        const sortedTimes = Array.from(groups.keys()).sort((a, b) => a - b);
+        let lastPrice = currentPrice;
+        sortedTimes.forEach((time, index) => {
+            const points = groups.get(time);
+            if (points.length > 0) {
+                // Use first trade price as open, or previous close if not first candle
+                const open = index === 0 ? points[0].price : lastPrice;
+                const close = points[points.length - 1].price;
+                const high = Math.max(open, ...points.map(p => p.price));
+                const low = Math.min(open, ...points.map(p => p.price));
+                const volume = points.reduce((sum, p) => sum + p.volume, 0);
                 candles.push({
                     time: Math.floor(time / 1000),
                     open,
@@ -79,62 +107,24 @@ class ChartDataService {
                     close,
                     volume
                 });
-                price = close;
+                lastPrice = close;
             }
-        }
-        else {
-            // Group history into candles
-            const groups = new Map();
-            history.forEach(point => {
-                const candleTime = Math.floor(point.timestamp / intervalMs) * intervalMs;
-                if (candleTime >= startTime) {
-                    if (!groups.has(candleTime)) {
-                        groups.set(candleTime, []);
-                    }
-                    groups.get(candleTime).push(point);
-                }
+        });
+        // If we have trades but no candles in the time range, show last trade as current candle
+        if (candles.length === 0 && history.length > 0) {
+            const lastTrade = history[history.length - 1];
+            const candleTime = Math.floor(now / 1000);
+            candles.push({
+                time: candleTime,
+                open: lastTrade.price,
+                high: lastTrade.price,
+                low: lastTrade.price,
+                close: lastTrade.price,
+                volume: lastTrade.volume
             });
-            // Fill in missing candles and convert groups to candles
-            let lastPrice = history[0]?.price || currentPrice;
-            for (let time = startTime; time <= now; time += intervalMs) {
-                const points = groups.get(time) || [];
-                if (points.length > 0) {
-                    const open = points[0].price;
-                    const close = points[points.length - 1].price;
-                    const high = Math.max(...points.map(p => p.price));
-                    const low = Math.min(...points.map(p => p.price));
-                    const volume = points.reduce((sum, p) => sum + p.volume, 0);
-                    candles.push({
-                        time: Math.floor(time / 1000),
-                        open,
-                        high,
-                        low,
-                        close,
-                        volume
-                    });
-                    lastPrice = close;
-                }
-                else {
-                    // Generate synthetic candle
-                    const variation = (Math.random() - 0.5) * 0.001; // 0.1% variation
-                    const open = lastPrice;
-                    const close = lastPrice * (1 + variation);
-                    const high = Math.max(open, close) * (1 + Math.random() * 0.0005);
-                    const low = Math.min(open, close) * (1 - Math.random() * 0.0005);
-                    candles.push({
-                        time: Math.floor(time / 1000),
-                        open,
-                        high,
-                        low,
-                        close,
-                        volume: 0
-                    });
-                    lastPrice = close;
-                }
-            }
         }
-        // Ensure we have the right number of candles
-        return candles.slice(-limit);
+        console.log(`📊 [ChartData] Generated ${candles.length} candles from ${history.length} trades`);
+        return candles;
     }
     /**
      * Convert timeframe to milliseconds

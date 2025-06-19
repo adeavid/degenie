@@ -237,8 +237,11 @@ export class TradingViewDatafeed {
         currentBar.volume += trade.solAmount;
       }
 
-      // Send update
-      onRealtimeCallback(currentBar);
+      // Send update with proper timestamp
+      onRealtimeCallback({
+        ...currentBar,
+        time: barTime * 1000 // Ensure time is in milliseconds
+      });
     };
 
     // Subscribe to trade events

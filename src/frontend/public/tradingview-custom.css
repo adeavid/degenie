@@ -1,0 +1,127 @@
+/* Custom TradingView styles to match pump.fun appearance */
+
+/* Dark theme adjustments */
+.tv-lightweight-charts,
+.chart-container iframe {
+  background-color: #0a0a0a !important;
+}
+
+/* Improve candle visibility */
+.tv-lightweight-charts canvas {
+  image-rendering: crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+}
+
+/* Price scale styling */
+.tv-price-scale {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
+}
+
+/* Loading screen */
+.tv-spinner {
+  border-color: #0ECB81 !important;
+}
+
+/* Tooltip styling */
+.tv-tooltip {
+  background-color: #1a1a1a !important;
+  border: 1px solid #2B2B43 !important;
+  border-radius: 4px;
+  color: #B2B5BE !important;
+}
+
+/* Crosshair label */
+.tv-crosshair-label {
+  background-color: #1a1a1a !important;
+  color: #B2B5BE !important;
+  border: 1px solid #2B2B43 !important;
+}
+
+/* Volume bars */
+.tv-volume-histogram {
+  opacity: 0.5;
+}
+
+/* Legend text */
+.tv-legend-item {
+  color: #B2B5BE !important;
+  font-size: 13px;
+}
+
+/* Chart controls */
+.tv-chart-controls {
+  background-color: #0a0a0a !important;
+  border-top: 1px solid #1a1a1a !important;
+}
+
+/* Time scale */
+.tv-time-scale {
+  color: #B2B5BE !important;
+  font-size: 12px;
+}
+
+/* Grid lines - more subtle */
+.tv-grid-line {
+  stroke: #1a1a1a !important;
+  stroke-dasharray: 3, 3;
+}
+
+/* Price line labels */
+.tv-price-line-label {
+  background-color: #1a1a1a !important;
+  color: #B2B5BE !important;
+  border: none !important;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+/* Current price line */
+.tv-current-price-line {
+  stroke: #758696 !important;
+  stroke-width: 1px;
+  stroke-dasharray: 4, 2;
+}
+
+/* Watermark - hide or style */
+.tv-watermark {
+  opacity: 0.05 !important;
+}
+
+/* Button hover states */
+.tv-button:hover {
+  background-color: #2B2B43 !important;
+}
+
+/* Selected timeframe */
+.tv-resolution-selector .selected {
+  background-color: #0ECB81 !important;
+  color: #0a0a0a !important;
+}
+
+/* Chart border */
+.tv-main-chart-wrapper {
+  border: 1px solid #1a1a1a !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2B2B43;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3B3B53;
+}

@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -16,7 +49,8 @@ const comments_routes_1 = __importDefault(require("../routes/comments.routes"));
 // import { MockRedis } from './services/MockRedis';
 const BondingCurveService_1 = require("../services/blockchain/BondingCurveService");
 const WebSocketService_1 = require("../services/websocket/WebSocketService");
-const ChartDataService_1 = require("../services/chart/ChartDataService");
+const PumpFunBondingCurve_1 = require("../services/blockchain/PumpFunBondingCurve");
+const shared_1 = require("../services/shared");
 const http_1 = require("http");
 // 🚀 SOLANA IMPORTS FOR REAL TOKEN DEPLOYMENT
 const web3_js_1 = require("@solana/web3.js");
@@ -292,50 +326,96 @@ app.get('/api/tokens/user/:walletAddress', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// PRODUCTION-READY TRADING ENDPOINTS (MUST be before tokenRouter)
+// PRODUCTION-READY TRADING ENDPOINTS WITH REAL PUMP.FUN BONDING CURVE
 app.post('/api/tokens/:tokenAddress/buy', async (req, res) => {
     try {
         const { tokenAddress } = req.params;
-        const { walletAddress, solAmount } = req.body;
+        const { walletAddress, solAmount, slippage = 1 } = req.body;
         console.log(`💰 [Buy] ${walletAddress} buying ${solAmount} SOL of ${tokenAddress}`);
-        const token = deployedTokens.get(tokenAddress);
-        if (!token) {
-            res.status(404).json({ error: 'Token not found' });
+        // Get current SOL raised for this token
+        const currentSolRaised = shared_1.tradeStorage.getSolRaised(tokenAddress) || 0;
+        // Validate trade
+        const validation = PumpFunBondingCurve_1.PumpFunBondingCurve.validateTrade(parseFloat(solAmount), 'buy', currentSolRaised);
+        if (!validation.valid) {
+            res.status(400).json({ error: validation.reason });
             return;
         }
-        // Simple bonding curve calculation (like pump.fun)
-        const currentSupply = token.trades?.reduce((sum, trade) => {
-            return sum + (trade.type === 'buy' ? trade.tokenAmount : -trade.tokenAmount);
-        }, 0) || 0;
-        const bondingCurvePrice = 0.000001 + (currentSupply / token.bondingCurveSupply) * 0.001;
-        const tokenAmount = solAmount / bondingCurvePrice;
-        // Create trade record
+        // Calculate tokens out using pump.fun formula
+        const tokensOut = PumpFunBondingCurve_1.PumpFunBondingCurve.calculateTokensOut(parseFloat(solAmount), currentSolRaised);
+        const currentPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+        const newPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised + parseFloat(solAmount));
+        const priceImpact = PumpFunBondingCurve_1.PumpFunBondingCurve.calculatePriceImpact(parseFloat(solAmount), currentSolRaised);
+        // Apply fees (1% total: 0.5% platform + 0.5% creator)
+        const platformFee = parseFloat(solAmount) * 0.005;
+        const creatorFee = parseFloat(solAmount) * 0.005;
+        const totalFee = platformFee + creatorFee;
+        const netTokensOut = tokensOut * 0.99; // 1% less tokens due to fees
+        // Execute trade (in dev mode, skip blockchain)
+        const txSignature = `dev_tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const newSolRaised = currentSolRaised + parseFloat(solAmount);
+        const graduationProgress = PumpFunBondingCurve_1.PumpFunBondingCurve.getGraduationProgress(newSolRaised);
+        // Store the trade with average execution price
+        const averagePrice = parseFloat(solAmount) / netTokensOut; // SOL per token (average price for this trade)
         const trade = {
-            id: `trade_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-            timestamp: Date.now(),
+            id: txSignature,
+            tokenAddress,
             type: 'buy',
-            walletAddress,
+            wallet: walletAddress,
             solAmount: parseFloat(solAmount),
-            tokenAmount,
-            price: bondingCurvePrice,
-            txHash: `simulated_${Date.now()}` // In production, this would be real Solana tx
+            tokenAmount: netTokensOut,
+            price: averagePrice, // Use average execution price for accurate candles
+            timestamp: Date.now(),
+            txSignature,
+            solRaisedAfter: newSolRaised,
+            priceAfter: newPrice
         };
-        // Update token data
-        token.trades = token.trades || [];
-        token.trades.push(trade);
-        token.totalVolume += parseFloat(solAmount);
-        // Add to holders if new
-        if (!token.holders.includes(walletAddress)) {
-            token.holders.push(walletAddress);
+        shared_1.tradeStorage.addTrade(trade);
+        console.log(`💾 [Buy] Trade stored in tradeStorage for ${tokenAddress}`);
+        // Update token metadata if needed
+        if (!shared_1.tokenMetadata.has(tokenAddress)) {
+            const token = deployedTokens.get(tokenAddress);
+            if (token) {
+                shared_1.tokenMetadata.set(tokenAddress, {
+                    name: token.name || 'Unknown Token',
+                    symbol: token.symbol || tokenAddress.substring(0, 4).toUpperCase(),
+                    description: token.description || '',
+                    creator: token.creator || walletAddress,
+                    createdAt: token.createdAt || Date.now()
+                });
+            }
         }
-        console.log(`✅ [Buy] Trade recorded: ${tokenAmount.toFixed(2)} tokens for ${solAmount} SOL`);
+        // Broadcast trade via WebSocket
+        WebSocketService_1.webSocketService.broadcastTrade(tokenAddress, {
+            id: trade.id,
+            type: 'buy',
+            account: walletAddress,
+            solAmount: parseFloat(solAmount),
+            tokenAmount: netTokensOut,
+            price: newPrice,
+            timestamp: Date.now(),
+            signature: txSignature,
+            newPrice: newPrice,
+            graduationProgress
+        });
+        console.log(`✅ [Buy] Trade executed: ${netTokensOut.toFixed(2)} tokens for ${solAmount} SOL`);
+        console.log(`📈 Price Impact: ${priceImpact.toFixed(2)}%`);
+        console.log(`🎯 Progress: ${graduationProgress.toFixed(2)}% to graduation`);
         res.json({
             success: true,
             data: {
-                trade,
-                newPrice: bondingCurvePrice,
-                tokenAmount,
-                graduationProgress: (currentSupply / token.bondingCurveSupply) * 100
+                signature: txSignature,
+                inputAmount: parseFloat(solAmount),
+                outputAmount: netTokensOut,
+                pricePerToken: newPrice,
+                fees: {
+                    platform: platformFee,
+                    creator: creatorFee,
+                    total: totalFee
+                },
+                newPrice,
+                newSupply: PumpFunBondingCurve_1.PumpFunBondingCurve.INITIAL_SUPPLY * (newSolRaised / PumpFunBondingCurve_1.PumpFunBondingCurve.GRADUATION_THRESHOLD),
+                graduationProgress,
+                priceImpact
             }
         });
     }
@@ -347,42 +427,79 @@ app.post('/api/tokens/:tokenAddress/buy', async (req, res) => {
 app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
     try {
         const { tokenAddress } = req.params;
-        const { walletAddress, tokenAmount } = req.body;
+        const { walletAddress, tokenAmount, slippage = 1 } = req.body;
         console.log(`💸 [Sell] ${walletAddress} selling ${tokenAmount} tokens of ${tokenAddress}`);
-        const token = deployedTokens.get(tokenAddress);
-        if (!token) {
-            res.status(404).json({ error: 'Token not found' });
+        // Get current SOL raised for this token
+        const currentSolRaised = shared_1.tradeStorage.getSolRaised(tokenAddress) || 0;
+        // Validate trade
+        const validation = PumpFunBondingCurve_1.PumpFunBondingCurve.validateTrade(parseFloat(tokenAmount), 'sell', currentSolRaised);
+        if (!validation.valid) {
+            res.status(400).json({ error: validation.reason });
             return;
         }
-        // Simple bonding curve calculation
-        const currentSupply = token.trades?.reduce((sum, trade) => {
-            return sum + (trade.type === 'buy' ? trade.tokenAmount : -trade.tokenAmount);
-        }, 0) || 0;
-        const bondingCurvePrice = 0.000001 + (currentSupply / token.bondingCurveSupply) * 0.001;
-        const solAmount = tokenAmount * bondingCurvePrice * 0.97; // 3% sell fee like pump.fun
-        // Create trade record
+        // Calculate SOL out using pump.fun formula
+        const solOut = PumpFunBondingCurve_1.PumpFunBondingCurve.calculateSolOut(parseFloat(tokenAmount), currentSolRaised);
+        const currentPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+        const newSolRaised = currentSolRaised - solOut;
+        const newPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(newSolRaised);
+        const priceImpact = ((currentPrice - newPrice) / currentPrice) * 100;
+        // Apply fees (1% total: 0.5% platform + 0.5% creator)
+        const platformFee = solOut * 0.005;
+        const creatorFee = solOut * 0.005;
+        const totalFee = platformFee + creatorFee;
+        const netSolOut = solOut - totalFee;
+        // Execute trade (in dev mode, skip blockchain)
+        const txSignature = `dev_tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const graduationProgress = PumpFunBondingCurve_1.PumpFunBondingCurve.getGraduationProgress(newSolRaised);
+        // Store the trade with average execution price
+        const averagePrice = netSolOut / parseFloat(tokenAmount); // SOL per token (average price for this trade)
         const trade = {
-            id: `trade_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-            timestamp: Date.now(),
+            id: txSignature,
+            tokenAddress,
             type: 'sell',
-            walletAddress,
-            solAmount,
+            wallet: walletAddress,
+            solAmount: netSolOut,
             tokenAmount: parseFloat(tokenAmount),
-            price: bondingCurvePrice,
-            txHash: `simulated_${Date.now()}`
+            price: averagePrice, // Use average execution price for accurate candles
+            timestamp: Date.now(),
+            txSignature,
+            solRaisedAfter: newSolRaised,
+            priceAfter: newPrice
         };
-        // Update token data
-        token.trades = token.trades || [];
-        token.trades.push(trade);
-        token.totalVolume += solAmount;
-        console.log(`✅ [Sell] Trade recorded: ${tokenAmount} tokens for ${solAmount.toFixed(6)} SOL`);
+        shared_1.tradeStorage.addTrade(trade);
+        console.log(`💾 [Sell] Trade stored in tradeStorage for ${tokenAddress}`);
+        // Broadcast trade via WebSocket
+        WebSocketService_1.webSocketService.broadcastTrade(tokenAddress, {
+            id: trade.id,
+            type: 'sell',
+            account: walletAddress,
+            solAmount: netSolOut,
+            tokenAmount: parseFloat(tokenAmount),
+            price: newPrice,
+            timestamp: Date.now(),
+            signature: txSignature,
+            newPrice: newPrice,
+            graduationProgress
+        });
+        console.log(`✅ [Sell] Trade executed: ${tokenAmount} tokens for ${netSolOut.toFixed(6)} SOL`);
+        console.log(`📉 Price Impact: -${priceImpact.toFixed(2)}%`);
+        console.log(`🎯 Progress: ${graduationProgress.toFixed(2)}% to graduation`);
         res.json({
             success: true,
             data: {
-                trade,
-                newPrice: bondingCurvePrice,
-                solAmount,
-                graduationProgress: ((currentSupply - parseFloat(tokenAmount)) / token.bondingCurveSupply) * 100
+                signature: txSignature,
+                inputAmount: parseFloat(tokenAmount),
+                outputAmount: netSolOut,
+                pricePerToken: newPrice,
+                fees: {
+                    platform: platformFee,
+                    creator: creatorFee,
+                    total: totalFee
+                },
+                newPrice,
+                newSupply: PumpFunBondingCurve_1.PumpFunBondingCurve.INITIAL_SUPPLY * (newSolRaised / PumpFunBondingCurve_1.PumpFunBondingCurve.GRADUATION_THRESHOLD),
+                graduationProgress,
+                priceImpact: -priceImpact
             }
         });
     }
@@ -393,6 +510,45 @@ app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
 });
 // Token routes
 app.use('/api/tokens', token_routes_1.default);
+// Get all tokens
+app.get('/api/tokens', async (req, res) => {
+    try {
+        // Convert map to array and add calculated fields
+        const tokens = Array.from(deployedTokens.values()).map(token => {
+            // Get bonding curve state for real metrics
+            const bondingCurveState = BondingCurveService_1.bondingCurveService.getBondingCurveState(token.tokenAddress);
+            // Get real metrics from tradeStorage
+            const volume24h = shared_1.tradeStorage.get24hVolume(token.tokenAddress);
+            const priceChange = shared_1.tradeStorage.get24hPriceChange(token.tokenAddress);
+            const priceChange24h = priceChange?.percentage || 0;
+            return {
+                address: token.tokenAddress,
+                name: token.name,
+                symbol: token.symbol,
+                description: token.description,
+                logoUrl: token.logoUrl,
+                creator: token.creator,
+                createdAt: token.deployedAt,
+                currentPrice: token.currentPrice || 0.000069,
+                marketCap: token.marketCap || 0,
+                volume24h,
+                priceChange24h,
+                bondingCurveProgress: token.bondingCurveProgress || 0,
+                isGraduated: token.isGraduated || false,
+                holders: shared_1.tradeStorage.getHolderCount(token.tokenAddress) || 1,
+                trades: shared_1.tradeStorage.getTrades(token.tokenAddress).slice(-20).reverse() // Last 20 trades, newest first
+            };
+        });
+        res.json({
+            success: true,
+            data: tokens
+        });
+    }
+    catch (error) {
+        console.error('Error fetching tokens:', error);
+        res.status(500).json({ error: 'Failed to fetch tokens' });
+    }
+});
 // Wallet routes
 app.use('/api/wallet', wallet_routes_1.default);
 // Comment routes
@@ -736,13 +892,28 @@ app.get('/api/tokens/:tokenAddress/trades', async (req, res) => {
             });
             return;
         }
-        // PRODUCTION-READY: Only show trades if they actually exist in our trade store
-        const tokenTrades = token.trades || [];
+        // Get trades from tradeStorage service (the source of truth)
+        const tokenTrades = shared_1.tradeStorage.getTrades(tokenAddress);
         console.log(`📊 [Get Trades] Token has ${tokenTrades.length} real trades`);
+        // Format trades for frontend display
+        const formattedTrades = tokenTrades.map(trade => ({
+            id: trade.id,
+            type: trade.type,
+            account: trade.wallet,
+            solAmount: trade.solAmount,
+            tokenAmount: trade.tokenAmount,
+            price: trade.price,
+            timestamp: trade.timestamp,
+            signature: trade.txSignature,
+            newPrice: trade.priceAfter,
+            priceChange: trade.type === 'buy' ?
+                ((trade.priceAfter - trade.price) / trade.price * 100) :
+                ((trade.price - trade.priceAfter) / trade.price * -100)
+        }));
         res.json({
             success: true,
-            data: tokenTrades,
-            message: tokenTrades.length === 0 ? 'No trades yet - be the first!' : `${tokenTrades.length} trades found`
+            data: formattedTrades,
+            message: formattedTrades.length === 0 ? 'No trades yet - be the first!' : `${formattedTrades.length} trades found`
         });
     }
     catch (error) {
@@ -811,7 +982,6 @@ app.post('/api/tokens/deploy', async (req, res) => {
             ...deploymentResult,
             createdAt: Date.now(),
             deployer: walletAddress,
-            trades: [], // Empty trades array - production ready
             totalVolume: 0,
             holders: [walletAddress], // Creator is the only holder initially
             bondingCurveSupply: 800000000, // 80% for bonding curve (like pump.fun)
@@ -844,40 +1014,58 @@ app.post('/api/tokens/deploy', async (req, res) => {
     }
 });
 // 🚀 REAL TRADING ENDPOINTS - Production Ready!
-// Calculate trade preview (buy/sell)
+// Calculate trade preview (buy/sell) with PUMP.FUN bonding curve
 app.post('/api/tokens/:tokenAddress/calculate-trade', async (req, res) => {
     try {
         const { tokenAddress } = req.params;
         const { amount, type, inputType, slippage = 1 } = req.body;
         console.log(`📊 [Calculate Trade] Request:`, { tokenAddress, amount, type, inputType, slippage });
-        // Get bonding curve state
-        const bondingCurveState = await BondingCurveService_1.bondingCurveService.getBondingCurveState(tokenAddress);
-        if (!bondingCurveState) {
-            res.status(404).json({ error: 'Token bonding curve not found' });
-            return;
-        }
-        let preview;
+        // Get current SOL raised
+        const currentSolRaised = shared_1.tradeStorage.getSolRaised(tokenAddress) || 0;
+        const currentPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+        let outputAmount;
+        let priceImpact;
+        let newPrice;
         if (type === 'buy' && inputType === 'sol') {
-            preview = BondingCurveService_1.bondingCurveService.calculateBuyAmount(amount, bondingCurveState.currentPrice.toNumber(), 1000, // price increment
-            bondingCurveState.totalSupply.toNumber());
+            // Calculate tokens out for SOL in
+            outputAmount = PumpFunBondingCurve_1.PumpFunBondingCurve.calculateTokensOut(amount, currentSolRaised);
+            priceImpact = PumpFunBondingCurve_1.PumpFunBondingCurve.calculatePriceImpact(amount, currentSolRaised);
+            newPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised + amount);
         }
         else if (type === 'sell' && inputType === 'token') {
-            preview = BondingCurveService_1.bondingCurveService.calculateSellAmount(amount, bondingCurveState.currentPrice.toNumber(), 1000, // price increment
-            bondingCurveState.totalSupply.toNumber());
+            // Calculate SOL out for tokens in
+            outputAmount = PumpFunBondingCurve_1.PumpFunBondingCurve.calculateSolOut(amount, currentSolRaised);
+            newPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised - outputAmount);
+            priceImpact = ((currentPrice - newPrice) / currentPrice) * 100;
+        }
+        else if (type === 'buy' && inputType === 'token') {
+            // Calculate SOL needed to buy specific tokens
+            const solNeeded = PumpFunBondingCurve_1.PumpFunBondingCurve.calculateSolIn(amount, currentSolRaised);
+            outputAmount = amount; // User gets the tokens they requested
+            priceImpact = PumpFunBondingCurve_1.PumpFunBondingCurve.calculatePriceImpact(solNeeded, currentSolRaised);
+            newPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised + solNeeded);
         }
         else {
             res.status(400).json({ error: 'Invalid trade type or input type' });
             return;
         }
-        console.log(`✅ [Calculate Trade] Preview:`, preview);
+        // Apply fees
+        const fees = outputAmount * 0.01; // 1% total fees
+        const minReceived = outputAmount * (1 - slippage / 100) * 0.99; // After fees and slippage
+        console.log(`✅ [Calculate Trade] Preview:`, {
+            outputAmount,
+            priceImpact: priceImpact.toFixed(2) + '%',
+            currentPrice: currentPrice.toFixed(8),
+            newPrice: newPrice.toFixed(8)
+        });
         res.json({
             success: true,
             data: {
-                expectedTokens: type === 'buy' ? preview.outputAmount : undefined,
-                expectedSol: type === 'sell' ? preview.outputAmount : undefined,
-                priceImpact: preview.priceImpact,
-                minReceived: preview.minimumReceived,
-                fees: preview.totalFee
+                tokenAmount: type === 'buy' ? outputAmount : amount,
+                solAmount: type === 'sell' ? outputAmount : amount,
+                priceImpact,
+                minReceived,
+                fees: fees || 0.0005
             }
         });
     }
@@ -886,153 +1074,7 @@ app.post('/api/tokens/:tokenAddress/calculate-trade', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// Execute buy transaction
-app.post('/api/tokens/:tokenAddress/buy', async (req, res) => {
-    try {
-        const { tokenAddress } = req.params;
-        const { walletAddress, solAmount } = req.body;
-        console.log(`💰 [Buy Token] Request:`, { tokenAddress, walletAddress, solAmount });
-        if (!walletAddress || !solAmount) {
-            res.status(400).json({ error: 'Missing required fields' });
-            return;
-        }
-        // Calculate expected output
-        const bondingCurveState = await BondingCurveService_1.bondingCurveService.getBondingCurveState(tokenAddress);
-        if (!bondingCurveState) {
-            res.status(404).json({ error: 'Token bonding curve not found' });
-            return;
-        }
-        const preview = BondingCurveService_1.bondingCurveService.calculateBuyAmount(solAmount, bondingCurveState.currentPrice.toNumber(), 1000, bondingCurveState.totalSupply.toNumber());
-        // Execute buy transaction
-        const result = await BondingCurveService_1.bondingCurveService.executeBuy(tokenAddress, walletAddress, solAmount, preview.minimumReceived * 1e6 // Convert to base units
-        );
-        // Update token store with trade
-        const token = deployedTokens.get(tokenAddress);
-        if (token) {
-            const trade = {
-                id: `trade_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-                type: 'buy',
-                account: walletAddress,
-                solAmount: solAmount,
-                tokenAmount: result.outputAmount,
-                price: result.pricePerToken,
-                timestamp: Date.now(),
-                signature: result.signature,
-                priceChange: result.graduationProgress > bondingCurveState.bondingCurveProgress ?
-                    result.graduationProgress - bondingCurveState.bondingCurveProgress : 0
-            };
-            token.trades = token.trades || [];
-            token.trades.unshift(trade); // Add to beginning
-            token.totalVolume = (token.totalVolume || 0) + solAmount;
-            // Update holders if new
-            if (!token.holders.includes(walletAddress)) {
-                token.holders.push(walletAddress);
-            }
-        }
-        console.log(`✅ [Buy Token] Success:`, result);
-        // Record price point for charts
-        ChartDataService_1.chartDataService.addPricePoint(tokenAddress, result.newPrice, solAmount);
-        // Broadcast trade via WebSocket
-        if (token) {
-            const trade = token.trades[0]; // Get the trade we just added
-            WebSocketService_1.webSocketService.broadcastTrade(tokenAddress, {
-                ...trade,
-                newPrice: result.newPrice,
-                graduationProgress: result.graduationProgress
-            });
-        }
-        // Check for graduation
-        if (result.graduationProgress >= 100 && !bondingCurveState.isGraduated) {
-            WebSocketService_1.webSocketService.broadcastGraduation(tokenAddress, {
-                tokenAddress,
-                finalPrice: result.newPrice,
-                totalLiquidity: bondingCurveState.treasuryBalance.toNumber() / web3_js_1.LAMPORTS_PER_SOL,
-                graduationTime: Date.now()
-            });
-        }
-        res.json({
-            success: true,
-            data: {
-                signature: result.signature,
-                success: true,
-                trade: result,
-                newPrice: result.newPrice,
-                tokenAmount: result.outputAmount,
-                graduationProgress: result.graduationProgress
-            }
-        });
-    }
-    catch (error) {
-        console.error('❌ [Buy Token] Error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-// Execute sell transaction
-app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
-    try {
-        const { tokenAddress } = req.params;
-        const { walletAddress, tokenAmount } = req.body;
-        console.log(`💸 [Sell Token] Request:`, { tokenAddress, walletAddress, tokenAmount });
-        if (!walletAddress || !tokenAmount) {
-            res.status(400).json({ error: 'Missing required fields' });
-            return;
-        }
-        // Calculate expected output
-        const bondingCurveState = await BondingCurveService_1.bondingCurveService.getBondingCurveState(tokenAddress);
-        if (!bondingCurveState) {
-            res.status(404).json({ error: 'Token bonding curve not found' });
-            return;
-        }
-        const preview = BondingCurveService_1.bondingCurveService.calculateSellAmount(tokenAmount, bondingCurveState.currentPrice.toNumber(), 1000, bondingCurveState.totalSupply.toNumber());
-        // Execute sell transaction
-        const result = await BondingCurveService_1.bondingCurveService.executeSell(tokenAddress, walletAddress, tokenAmount, preview.minimumReceived);
-        // Update token store with trade
-        const token = deployedTokens.get(tokenAddress);
-        if (token) {
-            const trade = {
-                id: `trade_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-                type: 'sell',
-                account: walletAddress,
-                solAmount: result.outputAmount,
-                tokenAmount: tokenAmount,
-                price: result.pricePerToken,
-                timestamp: Date.now(),
-                signature: result.signature,
-                priceChange: bondingCurveState.bondingCurveProgress - result.graduationProgress
-            };
-            token.trades = token.trades || [];
-            token.trades.unshift(trade); // Add to beginning
-            token.totalVolume = (token.totalVolume || 0) + result.outputAmount;
-        }
-        console.log(`✅ [Sell Token] Success:`, result);
-        // Record price point for charts
-        ChartDataService_1.chartDataService.addPricePoint(tokenAddress, result.newPrice, result.outputAmount);
-        // Broadcast trade via WebSocket
-        if (token) {
-            const trade = token.trades[0]; // Get the trade we just added
-            WebSocketService_1.webSocketService.broadcastTrade(tokenAddress, {
-                ...trade,
-                newPrice: result.newPrice,
-                graduationProgress: result.graduationProgress
-            });
-        }
-        res.json({
-            success: true,
-            data: {
-                signature: result.signature,
-                success: true,
-                trade: result,
-                newPrice: result.newPrice,
-                solAmount: result.outputAmount,
-                graduationProgress: result.graduationProgress
-            }
-        });
-    }
-    catch (error) {
-        console.error('❌ [Sell Token] Error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+// DUPLICATE ENDPOINTS REMOVED - Buy and sell endpoints are already defined above at lines 386 and 490
 // Get real-time token metrics
 app.get('/api/tokens/:tokenAddress/metrics', async (req, res) => {
     try {
@@ -1059,10 +1101,39 @@ app.get('/api/tokens/:tokenAddress/chart', async (req, res) => {
         const { tokenAddress } = req.params;
         const { timeframe = '15m', limit = '300' } = req.query;
         console.log(`📊 [Chart Data] Request:`, { tokenAddress, timeframe, limit });
-        const chartData = await ChartDataService_1.chartDataService.getChartData(tokenAddress, timeframe, parseInt(limit));
+        // Get OHLCV data from trade storage
+        const intervalSeconds = {
+            '1m': 60,
+            '5m': 300,
+            '15m': 900,
+            '30m': 1800,
+            '1h': 3600,
+            '4h': 14400,
+            '1d': 86400
+        }[timeframe] || 900;
+        const ohlcvData = shared_1.tradeStorage.generateOHLCV(tokenAddress, intervalSeconds, parseInt(limit));
+        // If no trades, return current price as single candle
+        if (ohlcvData.length === 0) {
+            const currentSolRaised = shared_1.tradeStorage.getSolRaised(tokenAddress);
+            const currentPrice = PumpFunBondingCurve_1.PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+            const now = Math.floor(Date.now() / 1000);
+            res.json({
+                success: true,
+                data: [{
+                        time: now,
+                        open: currentPrice,
+                        high: currentPrice,
+                        low: currentPrice,
+                        close: currentPrice,
+                        volume: 0
+                    }],
+                currentPrice
+            });
+            return;
+        }
         res.json({
             success: true,
-            data: chartData.candles
+            data: ohlcvData
         });
     }
     catch (error) {
@@ -1097,8 +1168,58 @@ app.post('/api/credits/:userId/emergency', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// TradingView Datafeed Endpoints
+app.get('/api/tradingview/config', (req, res) => {
+    res.json(shared_1.tradingViewDatafeed.getConfig());
+});
+// TradingView search endpoint
+app.get('/api/tradingview/search', (req, res) => {
+    const { query, type, exchange, limit = 30 } = req.query;
+    const results = shared_1.tradingViewDatafeed.search(query, type, exchange, parseInt(limit));
+    res.json(results);
+});
+// TradingView symbol resolution
+app.get('/api/tradingview/symbols', (req, res) => {
+    const { symbol } = req.query;
+    const symbolInfo = shared_1.tradingViewDatafeed.resolveSymbol(symbol);
+    if (!symbolInfo) {
+        res.status(404).json({ s: 'no_data' });
+        return;
+    }
+    res.json(symbolInfo);
+});
+// TradingView history endpoint
+app.get('/api/tradingview/history', async (req, res) => {
+    try {
+        const { symbol, resolution, from, to } = req.query;
+        const result = shared_1.tradingViewDatafeed.getBars(symbol, resolution, parseInt(from), parseInt(to), true);
+        if (result.meta.noData || result.bars.length === 0) {
+            res.json({ s: 'no_data' });
+            return;
+        }
+        // Convert to TradingView format
+        res.json({
+            s: 'ok',
+            t: result.bars.map(b => Math.floor(b.time / 1000)), // Convert to seconds
+            o: result.bars.map(b => b.open),
+            h: result.bars.map(b => b.high),
+            l: result.bars.map(b => b.low),
+            c: result.bars.map(b => b.close),
+            v: result.bars.map(b => b.volume)
+        });
+    }
+    catch (error) {
+        console.error('TradingView history error:', error);
+        res.json({ s: 'error', errmsg: 'Internal error' });
+    }
+});
+// TradingView time endpoint
+app.get('/api/tradingview/time', (req, res) => {
+    res.json(Math.floor(Date.now() / 1000));
+});
 // Use port 4000 as configured
 const PORT = process.env.PORT || 4000;
+// Services are imported from shared module
 // Create HTTP server
 const server = (0, http_1.createServer)(app);
 // Initialize WebSocket
@@ -1110,12 +1231,31 @@ app.get('/api/websocket/stats', (req, res) => {
         data: WebSocketService_1.webSocketService.getStats()
     });
 });
-server.listen(PORT, () => {
+// Import and start blockchain indexer if database is configured
+const startBlockchainIndexer = async () => {
+    if (process.env.DATABASE_URL) {
+        try {
+            const { blockchainIndexer } = await Promise.resolve().then(() => __importStar(require('./services/blockchain/BlockchainIndexer')));
+            await blockchainIndexer.start();
+            console.log(`🔍 Blockchain Indexer: Active ✅`);
+        }
+        catch (error) {
+            console.log(`🔍 Blockchain Indexer: Skipped (No database) ⚠️`);
+        }
+    }
+    else {
+        console.log(`🔍 Blockchain Indexer: Disabled (DATABASE_URL not set) ⚠️`);
+    }
+};
+server.listen(PORT, async () => {
     console.log(`🚀 DeGenie Complete AI Server running on port ${PORT} (FORCED)`);
     console.log(`🔑 Replicate: ${process.env['REPLICATE_API_TOKEN'] ? 'Ready ✅' : 'Missing ❌'}`);
     console.log(`💳 Credit System: Active ✅`);
     console.log(`🔌 WebSocket: Active ✅`);
     console.log(`💰 Trading: REAL Bonding Curve Integration ✅`);
+    console.log(`📊 TradingView: Datafeed API Ready ✅`);
+    // Start blockchain indexer
+    await startBlockchainIndexer();
     console.log(`\n📊 Tier System:`);
     console.log(`   🆓 Free: Basic quality (512px), Logos+Memes only`);
     console.log(`   💰 Starter: High quality (1024px), All assets including GIFs`);
@@ -1125,6 +1265,11 @@ server.listen(PORT, () => {
     console.log(`   POST /api/tokens/:address/buy - Execute buy`);
     console.log(`   POST /api/tokens/:address/sell - Execute sell`);
     console.log(`   GET  /api/tokens/:address/metrics - Real-time metrics`);
+    console.log(`   GET  /api/tokens/:address/chart - Chart data`);
+    console.log(`\n📈 TradingView Endpoints:`);
+    console.log(`   GET  /api/tradingview/config - Datafeed config`);
+    console.log(`   GET  /api/tradingview/symbols - Symbol info`);
+    console.log(`   GET  /api/tradingview/history - OHLCV data`);
     console.log(`\n🔌 WebSocket Events:`);
     console.log(`   subscribe/unsubscribe - Token price updates`);
     console.log(`   tradeUpdate - Real-time trades`);

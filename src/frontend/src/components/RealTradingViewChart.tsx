@@ -99,6 +99,37 @@ export function RealTradingViewChart({ tokenAddress, symbol, className }: RealTr
             console.log('[TradingView] subscribeBars:', symbolInfo.name);
             // WebSocket subscription would go here
             // For now, poll for updates
+            // Set up WebSocket connection for real-time updates
+            const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000'}/ws`);
+            
+            ws.onopen = () => {
+              console.log('[TradingView] WebSocket connected');
+              ws.send(JSON.stringify({ type: 'subscribe', tokenAddress: symbolInfo.name }));
+            };
+            
+            ws.onmessage = (event) => {
+              const data = JSON.parse(event.data);
+              if (data.type === 'tradeUpdate' && data.tokenAddress === symbolInfo.name) {
+                // Update the current candle with new trade data
+                const timestamp = Math.floor(data.timestamp / 1000);
+                const resolutionSeconds = parseInt(resolution) * 60; // Convert minutes to seconds
+                const barTime = Math.floor(timestamp / resolutionSeconds) * resolutionSeconds;
+                
+                onRealtimeCallback({
+                  time: barTime * 1000,
+                  open: data.open || data.price,
+                  high: data.high || data.price,
+                  low: data.low || data.price,
+                  close: data.price,
+                  volume: data.volume || data.solAmount
+                });
+              }
+            };
+            
+            // Store WebSocket for cleanup
+            (window as any)[`tv_ws_${subscriberUID}`] = ws;
+            
+            // Fallback polling for redundancy
             const intervalId = setInterval(() => {
               const now = Math.floor(Date.now() / 1000);
               fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tradingview/history?symbol=${symbolInfo.name}&resolution=${resolution}&from=${now - 300}&to=${now}`)
@@ -117,7 +148,7 @@ export function RealTradingViewChart({ tokenAddress, symbol, className }: RealTr
                   }
                 })
                 .catch(console.error);
-            }, 5000); // Update every 5 seconds
+            }, 15000); // Update every 15 seconds as backup
             
             // Store interval ID for cleanup
             (window as any)[`tv_sub_${subscriberUID}`] = intervalId;
@@ -125,6 +156,15 @@ export function RealTradingViewChart({ tokenAddress, symbol, className }: RealTr
           
           unsubscribeBars: (subscriberUID) => {
             console.log('[TradingView] unsubscribeBars:', subscriberUID);
+            
+            // Close WebSocket
+            const ws = (window as any)[`tv_ws_${subscriberUID}`];
+            if (ws) {
+              ws.close();
+              delete (window as any)[`tv_ws_${subscriberUID}`];
+            }
+            
+            // Clear interval
             const intervalId = (window as any)[`tv_sub_${subscriberUID}`];
             if (intervalId) {
               clearInterval(intervalId);
@@ -139,7 +179,7 @@ export function RealTradingViewChart({ tokenAddress, symbol, className }: RealTr
               .catch(() => callback(Math.floor(Date.now() / 1000)));
           }
         },
-        interval: '15' as any,
+        interval: '5' as any, // 5 minute default like pump.fun
         container: containerRef.current,
         library_path: '/charting_library/',
         locale: 'en',
@@ -147,18 +187,26 @@ export function RealTradingViewChart({ tokenAddress, symbol, className }: RealTr
           'header_symbol_search',
           'symbol_search_hot_key',
           'header_compare',
+          'use_localstorage_for_settings',
+          'save_chart_properties_to_local_storage',
           'header_saveload',
+          'header_undo_redo',
           'header_screenshot',
-          'header_settings',
-          'header_indicators',
-          'header_chart_type',
-          'timeframes_toolbar',
-          'main_series_scale_menu',
-          'display_market_status'
+          'go_to_date',
+          'compare_symbol',
+          'border_around_the_chart',
+          'remove_library_container_border',
+          'legend_widget'
         ],
         enabled_features: [
           'hide_left_toolbar_by_default',
-          'hide_volume_ma'
+          'hide_volume_ma',
+          'dont_show_boolean_study_arguments',
+          'hide_last_na_study_output',
+          'same_data_requery',
+          'side_toolbar_in_fullscreen_mode',
+          'disable_resolution_rebuild',
+          'use_localstorage_for_studies'
         ],
         charts_storage_url: 'https://saveload.tradingview.com',
         charts_storage_api_version: '1.1',
@@ -170,19 +218,53 @@ export function RealTradingViewChart({ tokenAddress, symbol, className }: RealTr
         overrides: {
           'paneProperties.background': '#0a0a0a',
           'paneProperties.backgroundType': 'solid',
-          'paneProperties.vertGridProperties.color': '#1f2937',
-          'paneProperties.horzGridProperties.color': '#1f2937',
-          'scalesProperties.lineColor': '#374151',
-          'scalesProperties.textColor': '#d1d5db',
-          'mainSeriesProperties.candleStyle.upColor': '#10b981',
-          'mainSeriesProperties.candleStyle.downColor': '#ef4444',
-          'mainSeriesProperties.candleStyle.borderUpColor': '#10b981',
-          'mainSeriesProperties.candleStyle.borderDownColor': '#ef4444',
-          'mainSeriesProperties.candleStyle.wickUpColor': '#10b981',
-          'mainSeriesProperties.candleStyle.wickDownColor': '#ef4444'
+          'paneProperties.vertGridProperties.color': '#1a1a1a',
+          'paneProperties.horzGridProperties.color': '#1a1a1a',
+          'paneProperties.crossHairProperties.color': '#758696',
+          'scalesProperties.lineColor': '#2B2B43',
+          'scalesProperties.textColor': '#B2B5BE',
+          'mainSeriesProperties.candleStyle.upColor': '#0ECB81',
+          'mainSeriesProperties.candleStyle.downColor': '#F6465D',
+          'mainSeriesProperties.candleStyle.borderUpColor': '#0ECB81',
+          'mainSeriesProperties.candleStyle.borderDownColor': '#F6465D',
+          'mainSeriesProperties.candleStyle.wickUpColor': '#0ECB81',
+          'mainSeriesProperties.candleStyle.wickDownColor': '#F6465D',
+          'mainSeriesProperties.hollowCandleStyle.upColor': '#0ECB81',
+          'mainSeriesProperties.hollowCandleStyle.downColor': '#F6465D',
+          'mainSeriesProperties.haStyle.upColor': '#0ECB81',
+          'mainSeriesProperties.haStyle.downColor': '#F6465D',
+          'volumePaneSize': 'medium',
+          'paneProperties.legendProperties.showStudyArguments': false,
+          'paneProperties.legendProperties.showStudyTitles': true,
+          'paneProperties.legendProperties.showStudyValues': true,
+          'paneProperties.legendProperties.showSeriesTitle': true,
+          'paneProperties.legendProperties.showSeriesOHLC': true,
+          'paneProperties.legendProperties.showLegend': true
         },
         custom_css_url: '/tradingview-custom.css',
-        loading_screen: { backgroundColor: '#0a0a0a' }
+        loading_screen: { backgroundColor: '#0a0a0a', foregroundColor: '#0ECB81' },
+        custom_formatters: {
+          timeFormatter: {
+            format: (date: any) => {
+              const _date = new Date(date);
+              return _date.toLocaleTimeString();
+            }
+          },
+          dateFormatter: {
+            format: (date: any) => {
+              const _date = new Date(date);
+              return _date.toLocaleDateString();
+            }
+          }
+        },
+        time_frames: [
+          { text: "1m", resolution: "1", description: "1 minute" },
+          { text: "5m", resolution: "5", description: "5 minutes" },
+          { text: "15m", resolution: "15", description: "15 minutes" },
+          { text: "1h", resolution: "60", description: "1 hour" },
+          { text: "4h", resolution: "240", description: "4 hours" },
+          { text: "1d", resolution: "1D", description: "1 day" }
+        ]
       };
 
       const widget = new window.TradingView.widget(widgetOptions);
@@ -230,7 +312,7 @@ export function RealTradingViewChart({ tokenAddress, symbol, className }: RealTr
           </div>
         </div>
       )}
-      <div ref={containerRef} className="w-full h-[500px]" />
+      <div ref={containerRef} className="w-full h-[500px]" style={{ minHeight: '500px' }} />
     </div>
   );
 }

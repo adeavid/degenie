@@ -16,13 +16,13 @@ export declare class ChartDataService {
     /**
      * Add a new price point from a trade
      */
-    addPricePoint(tokenAddress: string, price: number, volume: number): void;
+    addPricePoint(tokenAddress: string, price: number, volume: number, tradeType?: 'buy' | 'sell'): void;
     /**
      * Get chart data for a token with specified timeframe
      */
     getChartData(tokenAddress: string, timeframe?: '1m' | '5m' | '15m' | '1h' | '4h' | '1d', limit?: number): Promise<ChartData>;
     /**
-     * Generate candles from price history
+     * Generate candles from price history - ONLY REAL TRADES
      */
     private generateCandles;
     /**

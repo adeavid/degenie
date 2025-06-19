@@ -419,7 +419,8 @@ app.post('/api/tokens/:tokenAddress/buy', async (req, res) => {
     const newSolRaised = currentSolRaised + parseFloat(solAmount);
     const graduationProgress = PumpFunBondingCurve.getGraduationProgress(newSolRaised);
     
-    // Store the trade
+    // Store the trade with average execution price
+    const averagePrice = parseFloat(solAmount) / netTokensOut; // SOL per token (average price for this trade)
     const trade = {
       id: txSignature,
       tokenAddress,
@@ -427,7 +428,7 @@ app.post('/api/tokens/:tokenAddress/buy', async (req, res) => {
       wallet: walletAddress,
       solAmount: parseFloat(solAmount),
       tokenAmount: netTokensOut,
-      price: currentPrice,
+      price: averagePrice, // Use average execution price for accurate candles
       timestamp: Date.now(),
       txSignature,
       solRaisedAfter: newSolRaised,
@@ -435,6 +436,7 @@ app.post('/api/tokens/:tokenAddress/buy', async (req, res) => {
     };
     
     tradeStorage.addTrade(trade);
+    console.log(`💾 [Buy] Trade stored in tradeStorage for ${tokenAddress}`);
     
     // Update token metadata if needed
     if (!tokenMetadata.has(tokenAddress)) {
@@ -527,7 +529,8 @@ app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
     const txSignature = `dev_tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const graduationProgress = PumpFunBondingCurve.getGraduationProgress(newSolRaised);
     
-    // Store the trade
+    // Store the trade with average execution price
+    const averagePrice = netSolOut / parseFloat(tokenAmount); // SOL per token (average price for this trade)
     const trade = {
       id: txSignature,
       tokenAddress,
@@ -535,7 +538,7 @@ app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
       wallet: walletAddress,
       solAmount: netSolOut,
       tokenAmount: parseFloat(tokenAmount),
-      price: currentPrice,
+      price: averagePrice, // Use average execution price for accurate candles
       timestamp: Date.now(),
       txSignature,
       solRaisedAfter: newSolRaised,
@@ -543,6 +546,7 @@ app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
     };
     
     tradeStorage.addTrade(trade);
+    console.log(`💾 [Sell] Trade stored in tradeStorage for ${tokenAddress}`);
     
     // Broadcast trade via WebSocket
     webSocketService.broadcastTrade(tokenAddress, {
@@ -587,6 +591,122 @@ app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
   }
 });
 
+// Get candles for charting (MUST be before tokenRouter)
+app.get('/api/tokens/:tokenAddress/candles', async (req, res) => {
+  try {
+    const { tokenAddress } = req.params;
+    const { timeframe = '5m' } = req.query;
+    
+    console.log(`📊 [Candles] Request for ${tokenAddress} with timeframe ${timeframe}`);
+    
+    // Convert timeframe to seconds
+    const timeframeMap: { [key: string]: number } = {
+      '1m': 60,
+      '5m': 300,
+      '15m': 900,
+      '1h': 3600,
+      '4h': 14400,
+      '1d': 86400
+    };
+    
+    const intervalSeconds = timeframeMap[timeframe as string] || 300;
+    
+    // Get candles from tradeStorage
+    const candles = tradeStorage.generateOHLCV(tokenAddress, intervalSeconds, 300);
+    
+    // If no candles, return initial price candle
+    if (candles.length === 0) {
+      const currentSolRaised = tradeStorage.getSolRaised(tokenAddress) || 0;
+      const currentPrice = PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+      const now = Math.floor(Date.now() / 1000);
+      const candleTime = Math.floor(now / intervalSeconds) * intervalSeconds;
+      
+      res.json({
+        success: true,
+        data: [{
+          time: candleTime,
+          open: currentPrice,
+          high: currentPrice,
+          low: currentPrice,
+          close: currentPrice,
+          volume: 0
+        }]
+      });
+      return;
+    }
+    
+    console.log(`📊 [Candles] Returning ${candles.length} candles`);
+    
+    res.json({
+      success: true,
+      data: candles
+    });
+    
+  } catch (error: any) {
+    console.error('❌ [Candles] Error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+// Get trading data for specific token (MUST be before tokenRouter)
+app.get('/api/tokens/:tokenAddress/trades', async (req, res) => {
+  try {
+    const { tokenAddress } = req.params;
+    
+    console.log(`📈 [Get Trades] Request for token: ${tokenAddress}`);
+    
+    // Get the token info first
+    const token = deployedTokens.get(tokenAddress);
+    if (!token) {
+      res.status(404).json({ 
+        success: false,
+        error: 'Token not found',
+        data: []
+      });
+      return;
+    }
+    
+    // Get trades from tradeStorage service (the source of truth)
+    const tokenTrades = tradeStorage.getTrades(tokenAddress);
+    
+    console.log(`📊 [Get Trades] Token has ${tokenTrades.length} real trades`);
+    
+    // Format trades for frontend display
+    const formattedTrades = tokenTrades.map(trade => ({
+      id: trade.id,
+      type: trade.type,
+      account: trade.wallet,
+      solAmount: trade.solAmount,
+      tokenAmount: trade.tokenAmount,
+      price: trade.price,
+      timestamp: trade.timestamp,
+      signature: trade.txSignature,
+      newPrice: trade.priceAfter,
+      priceChange: trade.type === 'buy' ? 
+        ((trade.priceAfter - trade.price) / trade.price * 100) : 
+        ((trade.price - trade.priceAfter) / trade.price * -100)
+    }));
+    
+    res.json({
+      success: true,
+      data: formattedTrades,
+      message: formattedTrades.length === 0 ? 'No trades yet - be the first!' : `${formattedTrades.length} trades found`
+    });
+    
+  } catch (error: any) {
+    console.error('❌ [Get Trades] Error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      data: []
+    });
+  }
+});
+
 // Token routes
 app.use('/api/tokens', tokenRouter);
 
@@ -598,14 +718,10 @@ app.get('/api/tokens', async (req, res) => {
       // Get bonding curve state for real metrics
       const bondingCurveState = bondingCurveService.getBondingCurveState(token.tokenAddress);
       
-      // Calculate real metrics from trades
-      const trades = token.trades || [];
-      const volume24h = trades
-        .filter((t: any) => Date.now() - t.timestamp < 24 * 60 * 60 * 1000)
-        .reduce((sum: number, t: any) => sum + t.solAmount, 0);
-      
-      const priceChange24h = trades.length > 0 ? 
-        ((trades[0].price - (trades[trades.length - 1]?.price || trades[0].price)) / (trades[trades.length - 1]?.price || trades[0].price) * 100) : 0;
+      // Get real metrics from tradeStorage
+      const volume24h = tradeStorage.get24hVolume(token.tokenAddress);
+      const priceChange = tradeStorage.get24hPriceChange(token.tokenAddress);
+      const priceChange24h = priceChange?.percentage || 0;
       
       return {
         address: token.tokenAddress,
@@ -621,8 +737,8 @@ app.get('/api/tokens', async (req, res) => {
         priceChange24h,
         bondingCurveProgress: token.bondingCurveProgress || 0,
         isGraduated: token.isGraduated || false,
-        holders: token.holders?.length || 1,
-        trades: trades.slice(0, 20) // Last 20 trades
+        holders: tradeStorage.getHolderCount(token.tokenAddress) || 1,
+        trades: tradeStorage.getTrades(token.tokenAddress).slice(-20).reverse() // Last 20 trades, newest first
       };
     });
     
@@ -1005,45 +1121,6 @@ app.get('/api/tiers', (_req, res) => {
   });
 });
 
-// Get trading data for specific token (MUST be before tokenRouter)
-app.get('/api/tokens/:tokenAddress/trades', async (req, res) => {
-  try {
-    const { tokenAddress } = req.params;
-    
-    console.log(`📈 [Get Trades] Request for token: ${tokenAddress}`);
-    
-    // Get the token info first
-    const token = deployedTokens.get(tokenAddress);
-    if (!token) {
-      res.status(404).json({ 
-        success: false,
-        error: 'Token not found',
-        data: []
-      });
-      return;
-    }
-    
-    // PRODUCTION-READY: Only show trades if they actually exist in our trade store
-    const tokenTrades = token.trades || [];
-    
-    console.log(`📊 [Get Trades] Token has ${tokenTrades.length} real trades`);
-    
-    res.json({
-      success: true,
-      data: tokenTrades,
-      message: tokenTrades.length === 0 ? 'No trades yet - be the first!' : `${tokenTrades.length} trades found`
-    });
-    
-  } catch (error: any) {
-    console.error('❌ [Get Trades] Error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message,
-      data: []
-    });
-  }
-});
-
 // Token deployment endpoint
 app.post('/api/tokens/deploy', async (req, res) => {
   try {
@@ -1117,7 +1194,6 @@ app.post('/api/tokens/deploy', async (req, res) => {
       ...deploymentResult,
       createdAt: Date.now(),
       deployer: walletAddress,
-      trades: [], // Empty trades array - production ready
       totalVolume: 0,
       holders: [walletAddress], // Creator is the only holder initially
       bondingCurveSupply: 800000000, // 80% for bonding curve (like pump.fun)
