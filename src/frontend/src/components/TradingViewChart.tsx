@@ -43,7 +43,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
   const isMountedRef = useRef(true);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  const [selectedTimeframe, setSelectedTimeframe] = useState('15m');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('5m');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [priceChange, setPriceChange] = useState({ change: 0, percentage: 0 });
@@ -89,7 +89,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
     volumeData.push({
       time: now as Time,
       value: 0,
-      color: '#10b981'
+      color: '#00ff88'
     });
     
     return { candleData: data, volumeData };
@@ -160,7 +160,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
         volumeData.push({
           time: candle.time as Time,
           value: candle.volume,
-          color: candle.close > candle.open ? '#10b981' : '#ef4444'
+          color: candle.close > candle.open ? '#00ff88' : '#ff3366'
         });
       });
       
@@ -224,73 +224,93 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
   useEffect(() => {
     if (!chartContainerRef.current || !isMountedRef.current) return;
 
-    // Create the chart
+    // Create the chart with pump.fun-like styling
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: isFullscreen ? window.innerHeight - 100 : 500,
+      height: isFullscreen ? window.innerHeight - 100 : 400,
       layout: {
-        background: { type: ColorType.Solid, color: '#0a0a0a' },
-        textColor: '#d1d5db',
-        fontSize: 12,
-        fontFamily: 'Inter, sans-serif',
+        background: { type: ColorType.Solid, color: '#0f0f0f' },
+        textColor: '#9ca3af',
+        fontSize: 11,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       },
       grid: {
-        vertLines: { color: '#1f2937', style: 0, visible: true },
-        horzLines: { color: '#1f2937', style: 0, visible: true },
+        vertLines: { color: '#1a1a1a', style: 0, visible: true },
+        horzLines: { color: '#1a1a1a', style: 0, visible: true },
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: '#6366f1',
+          color: '#505050',
           width: 1,
-          style: 2,
-          labelBackgroundColor: '#6366f1',
+          style: 3,
+          labelBackgroundColor: '#2d2d2d',
         },
         horzLine: {
-          color: '#6366f1',
+          color: '#505050',
           width: 1,
-          style: 2,
-          labelBackgroundColor: '#6366f1',
+          style: 3,
+          labelBackgroundColor: '#2d2d2d',
         },
       },
       rightPriceScale: {
-        borderColor: '#374151',
-        textColor: '#d1d5db',
+        borderColor: '#2d2d2d',
+        textColor: '#9ca3af',
         entireTextOnly: false,
+        autoScale: true,
+        mode: 1,
+        invertScale: false,
+        alignLabels: false,
+        borderVisible: false,
         scaleMargins: {
           top: 0.1,
-          bottom: showVolume ? 0.4 : 0.1,
+          bottom: showVolume ? 0.3 : 0.1,
         },
       },
       timeScale: {
-        borderColor: '#374151',
+        borderColor: '#2d2d2d',
         timeVisible: true,
         secondsVisible: false,
+        borderVisible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        barSpacing: 8,
+        minBarSpacing: 4,
       },
       watermark: {
-        visible: true,
-        fontSize: 48,
-        horzAlign: 'center',
-        vertAlign: 'center',
-        color: 'rgba(107, 114, 128, 0.1)',
-        text: symbol.toUpperCase(),
+        visible: false, // pump.fun doesn't use watermarks
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        axisPressedMouseMove: {
+          time: true,
+          price: true,
+        },
+        axisDoubleClickReset: true,
+        mouseWheel: true,
+        pinch: true,
       },
     });
 
     chartRef.current = chart;
 
-    // Add candlestick series
+    // Add candlestick series with pump.fun colors
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderDownColor: '#ef4444',
-      borderUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-      wickUpColor: '#10b981',
+      upColor: '#00ff88',
+      downColor: '#ff3366',
+      borderDownColor: '#ff3366',
+      borderUpColor: '#00ff88',
+      wickDownColor: '#ff3366',
+      wickUpColor: '#00ff88',
       priceFormat: {
         type: 'price',
-        precision: 8,
-        minMove: 0.00000001,
+        precision: 9,
+        minMove: 0.000000001,
       },
     });
 
@@ -299,7 +319,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
     // Add volume series if enabled
     if (showVolume) {
       const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: '#6366f1',
+        color: '#2d2d2d',
         priceFormat: {
           type: 'volume',
         },
@@ -372,12 +392,12 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
   return (
     <div className={cn(
-      "relative bg-black rounded-xl border border-gray-800 overflow-hidden",
-      isFullscreen && "fixed inset-4 z-50 rounded-xl",
+      "relative bg-[#0f0f0f] rounded-lg border border-[#1a1a1a] overflow-hidden",
+      isFullscreen && "fixed inset-4 z-50 rounded-lg",
       className
     )}>
       {/* Chart Header */}
-      <div className="flex items-center justify-between p-4 bg-gray-900/50 border-b border-gray-800">
+      <div className="flex items-center justify-between p-3 bg-[#0a0a0a] border-b border-[#1a1a1a]">
         <div className="flex items-center space-x-6">
           {/* Price Info */}
           <div className="flex items-center space-x-3">
@@ -388,10 +408,10 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
                 </span>
                 {priceChange.percentage !== 0 && (
                   <div className={cn(
-                    "flex items-center space-x-1 px-2 py-1 rounded-lg text-sm font-medium",
+                    "flex items-center space-x-1 px-2 py-1 rounded-md text-sm font-medium",
                     priceChange.percentage > 0 
-                      ? "bg-green-500/20 text-green-400" 
-                      : "bg-red-500/20 text-red-400"
+                      ? "bg-[#00ff88]/20 text-[#00ff88]" 
+                      : "bg-[#ff3366]/20 text-[#ff3366]"
                   )}>
                     {priceChange.percentage > 0 ? (
                       <TrendingUp className="w-3 h-3" />
@@ -410,7 +430,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
           </div>
 
           {/* Timeframe Selector */}
-          <div className="flex items-center space-x-1 bg-gray-800/50 rounded-lg p-1">
+          <div className="flex items-center space-x-1 bg-[#1a1a1a] rounded-md p-1">
             {timeframes.map((tf) => (
               <Button
                 key={tf.value}
@@ -418,10 +438,10 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                  "px-3 py-1 rounded text-xs font-medium transition-all",
                   selectedTimeframe === tf.value
-                    ? "bg-green-500/20 text-green-400"
-                    : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+                    ? "bg-[#00ff88]/20 text-[#00ff88]"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-[#2d2d2d]"
                 )}
               >
                 {tf.label}
@@ -458,7 +478,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
       <div 
         ref={chartContainerRef} 
         className="relative w-full"
-        style={{ height: isFullscreen ? 'calc(100vh - 100px)' : '500px' }}
+        style={{ height: isFullscreen ? 'calc(100vh - 100px)' : '400px' }}
       />
 
       {/* Loading Overlay */}
