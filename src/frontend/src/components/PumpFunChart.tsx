@@ -27,212 +27,180 @@ interface TokenStats {
 }
 
 export function PumpFunChart({ tokenAddress, symbol, className }: PumpFunChartProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [candles, setCandles] = useState<CandleData[]>([]);
   const [stats, setStats] = useState<TokenStats | null>(null);
-  const [timeframe, setTimeframe] = useState('5');
+  const [timeframe, setTimeframe] = useState('5m');
   const [isLoading, setIsLoading] = useState(true);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [hoveredCandle, setHoveredCandle] = useState<number | null>(null);
 
-  // Fetch stats
-  const fetchStats = async () => {
+  // Fetch data
+  const fetchData = async () => {
     try {
+      // Fetch candles
+      const candlesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tokens/${tokenAddress}/candles?timeframe=${timeframe}`);
+      const candlesData = await candlesRes.json();
+      
+      // Fetch token stats
       const statsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tokens/${tokenAddress}/metrics`);
       const statsData = await statsRes.json();
       
       if (statsData.success) {
         setStats(statsData.data);
       }
+      
+      if (candlesData.success) {
+        setCandles(candlesData.data);
+      }
+      
+      setIsLoading(false);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching chart data:', error);
+      setIsLoading(false);
     }
   };
 
-  // Initialize TradingView widget
-  useEffect(() => {
-    if (!containerRef.current) return;
+  // Draw chart on canvas
+  const drawChart = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || candles.length === 0) return;
 
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/tv.js';
-    script.async = true;
-    script.onload = () => {
-      if (window.TradingView && containerRef.current) {
-        const widget = new window.TradingView.widget({
-          symbol: tokenAddress,
-          interval: timeframe,
-          container_id: containerRef.current.id,
-          datafeed: {
-            onReady: (callback: any) => {
-              setTimeout(() => callback({
-                supported_resolutions: ['1', '5', '15', '60', '240', '1D'],
-                supports_group_request: false,
-                supports_marks: false,
-                supports_search: true,
-                supports_timescale_marks: false,
-              }), 0);
-            },
-            resolveSymbol: (symbolName: string, onSymbolResolvedCallback: any, onResolveErrorCallback: any) => {
-              setTimeout(() => {
-                onSymbolResolvedCallback({
-                  name: symbolName,
-                  description: `${symbol}/SOL`,
-                  type: 'crypto',
-                  session: '24x7',
-                  timezone: 'Etc/UTC',
-                  ticker: symbolName,
-                  minmov: 1,
-                  pricescale: 100000000,
-                  has_intraday: true,
-                  intraday_multipliers: ['1', '5', '15', '60', '240'],
-                  supported_resolutions: ['1', '5', '15', '60', '240', '1D'],
-                  volume_precision: 8,
-                  data_status: 'streaming',
-                });
-              }, 0);
-            },
-            getBars: async (symbolInfo: any, resolution: string, periodParams: any, onHistoryCallback: any, onErrorCallback: any) => {
-              try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tokens/${tokenAddress}/candles?timeframe=${resolution}m`);
-                const data = await response.json();
-                
-                if (data.success && data.data.length > 0) {
-                  const bars = data.data.map((candle: CandleData) => ({
-                    time: candle.time * 1000,
-                    open: candle.open,
-                    high: candle.high,
-                    low: candle.low,
-                    close: candle.close,
-                    volume: candle.volume
-                  }));
-                  onHistoryCallback(bars, { noData: false });
-                } else {
-                  onHistoryCallback([], { noData: true });
-                }
-              } catch (error) {
-                console.error('Error loading bars:', error);
-                onErrorCallback(error);
-              }
-            },
-            subscribeBars: () => {},
-            unsubscribeBars: () => {},
-            getServerTime: (cb: any) => cb(Math.floor(Date.now() / 1000))
-          },
-          library_path: '/charting_library/',
-          locale: 'en',
-          disabled_features: [
-            'header_symbol_search',
-            'header_compare',
-            'header_saveload',
-            'header_screenshot',
-            'header_settings',
-            'timeframes_toolbar',
-            'volume_force_overlay',
-            'create_volume_indicator_by_default',
-            'header_indicators',
-            'header_chart_type',
-            'main_series_scale_menu',
-            'display_market_status',
-            'go_to_date',
-            'control_bar'
-          ],
-          enabled_features: [
-            'hide_left_toolbar_by_default',
-            'hide_volume_ma'
-          ],
-          charts_storage_url: 'https://saveload.tradingview.com',
-          charts_storage_api_version: '1.1',
-          client_id: 'degenie.com',
-          user_id: 'public_user',
-          fullscreen: false,
-          autosize: true,
-          theme: 'dark',
-          overrides: {
-            'paneProperties.background': '#0a0a0a',
-            'paneProperties.vertGridProperties.color': '#1a1a1a',
-            'paneProperties.horzGridProperties.color': '#1a1a1a',
-            'scalesProperties.textColor': '#B2B5BE',
-            'mainSeriesProperties.candleStyle.upColor': '#0ECB81',
-            'mainSeriesProperties.candleStyle.downColor': '#F6465D',
-            'mainSeriesProperties.candleStyle.borderUpColor': '#0ECB81',
-            'mainSeriesProperties.candleStyle.borderDownColor': '#F6465D',
-            'mainSeriesProperties.candleStyle.wickUpColor': '#0ECB81',
-            'mainSeriesProperties.candleStyle.wickDownColor': '#F6465D'
-          }
-        });
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-        widgetRef.current = widget;
-        
-        widget.onChartReady(() => {
-          setIsLoading(false);
-        });
-      }
-    };
+    // Set canvas size with device pixel ratio for crisp rendering
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
 
-    document.head.appendChild(script);
+    // Clear canvas
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, rect.width, rect.height);
 
-    return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-      if (widgetRef.current) {
-        widgetRef.current.remove();
-      }
-    };
-  }, [tokenAddress, symbol, timeframe]);
-
-  // Fetch initial stats
-  useEffect(() => {
-    fetchStats();
-  }, [tokenAddress]);
-
-  // WebSocket for real-time updates
-  useEffect(() => {
-    const connectWebSocket = () => {
-      const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000'}/ws`);
-      
-      ws.onopen = () => {
-        console.log('WebSocket connected for chart');
-        ws.send(JSON.stringify({ type: 'subscribe', tokenAddress }));
-      };
-      
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'tradeUpdate' && data.tokenAddress === tokenAddress) {
-          // Update stats
-          if (data.newPrice && data.graduationProgress !== undefined) {
-            setStats(prev => prev ? {
-              ...prev,
-              price: data.newPrice,
-              solRaised: data.solRaisedAfter || prev.solRaised,
-              graduationProgress: data.graduationProgress
-            } : null);
-          }
-        }
-      };
-      
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-      
-      ws.onclose = () => {
-        setTimeout(connectWebSocket, 5000);
-      };
-      
-      wsRef.current = ws;
-    };
+    // Calculate dimensions
+    const padding = { top: 20, right: 60, bottom: 80, left: 10 };
+    const chartWidth = rect.width - padding.left - padding.right;
+    const chartHeight = rect.height - padding.top - padding.bottom;
+    const volumeHeight = chartHeight * 0.2;
+    const priceHeight = chartHeight * 0.75;
     
-    connectWebSocket();
+    // Calculate price range
+    const prices = candles.flatMap(c => [c.high, c.low]);
+    const minPrice = Math.min(...prices) * 0.999;
+    const maxPrice = Math.max(...prices) * 1.001;
+    const priceRange = maxPrice - minPrice;
     
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+    // Calculate volume range
+    const maxVolume = Math.max(...candles.map(c => c.volume)) * 1.1 || 1;
+
+    // Draw grid lines
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 0.5;
+    
+    // Horizontal grid lines for price
+    for (let i = 0; i <= 4; i++) {
+      const y = padding.top + (priceHeight / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(rect.width - padding.right, y);
+      ctx.stroke();
+      
+      // Price labels
+      const price = maxPrice - (priceRange / 4) * i;
+      ctx.fillStyle = '#B2B5BE';
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(formatPrice(price), rect.width - padding.right + 5, y + 3);
+    }
+
+    // Draw candles
+    const candleWidth = Math.max(1, (chartWidth / candles.length) * 0.8);
+    const candleSpacing = chartWidth / candles.length;
+
+    candles.forEach((candle, index) => {
+      const x = padding.left + index * candleSpacing + candleSpacing / 2;
+      
+      // Calculate Y positions
+      const highY = padding.top + (1 - (candle.high - minPrice) / priceRange) * priceHeight;
+      const lowY = padding.top + (1 - (candle.low - minPrice) / priceRange) * priceHeight;
+      const openY = padding.top + (1 - (candle.open - minPrice) / priceRange) * priceHeight;
+      const closeY = padding.top + (1 - (candle.close - minPrice) / priceRange) * priceHeight;
+      
+      // Determine color
+      const isGreen = candle.close >= candle.open;
+      const color = isGreen ? '#0ECB81' : '#F6465D';
+      
+      // Draw wick
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, highY);
+      ctx.lineTo(x, lowY);
+      ctx.stroke();
+      
+      // Draw body
+      const bodyTop = Math.min(openY, closeY);
+      const bodyHeight = Math.max(1, Math.abs(closeY - openY));
+      
+      ctx.fillStyle = color;
+      ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+      
+      // Draw border for hollow effect
+      if (bodyHeight > 2) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
       }
-    };
-  }, [tokenAddress]);
+    });
+
+    // Draw volume bars
+    const volumeTop = padding.top + priceHeight + 20;
+    
+    candles.forEach((candle, index) => {
+      const x = padding.left + index * candleSpacing + candleSpacing / 2;
+      const height = (candle.volume / maxVolume) * volumeHeight;
+      const isGreen = candle.close >= candle.open;
+      
+      ctx.fillStyle = isGreen ? '#0ECB8133' : '#F6465D33';
+      ctx.fillRect(x - candleWidth / 2, volumeTop + volumeHeight - height, candleWidth, height);
+    });
+
+    // Draw volume axis label
+    ctx.fillStyle = '#666';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Volume', padding.left, volumeTop - 5);
+    
+    // Draw latest price line
+    if (candles.length > 0) {
+      const lastCandle = candles[candles.length - 1];
+      const lastPriceY = padding.top + (1 - (lastCandle.close - minPrice) / priceRange) * priceHeight;
+      
+      ctx.strokeStyle = '#758696';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, lastPriceY);
+      ctx.lineTo(rect.width - padding.right, lastPriceY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Price label background
+      ctx.fillStyle = lastCandle.close >= lastCandle.open ? '#0ECB81' : '#F6465D';
+      ctx.fillRect(rect.width - padding.right + 5, lastPriceY - 10, 55, 20);
+      
+      // Price label text
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(formatPrice(lastCandle.close), rect.width - padding.right + 8, lastPriceY + 3);
+    }
+  };
 
   const formatPrice = (price: number) => {
-    if (!price) return '0.00';
+    if (!price || isNaN(price)) return '0.00';
     if (price < 0.00001) return price.toExponential(2);
     if (price < 0.01) return price.toFixed(6);
     if (price < 1) return price.toFixed(4);
@@ -246,78 +214,40 @@ export function PumpFunChart({ tokenAddress, symbol, className }: PumpFunChartPr
     return volume.toFixed(2);
   };
 
-  // Use SimpleChart as fallback
-  const SimpleChartFallback = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [candles, setCandles] = useState<CandleData[]>([]);
+  // Initial fetch
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, [tokenAddress, timeframe]);
 
-    useEffect(() => {
-      const fetchCandles = async () => {
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tokens/${tokenAddress}/candles?timeframe=${timeframe}m`);
-          const data = await res.json();
-          if (data.success) {
-            setCandles(data.data);
-          }
-        } catch (error) {
-          console.error('Error fetching candles:', error);
-        }
-      };
-      
-      fetchCandles();
-      const interval = setInterval(fetchCandles, 5000);
-      return () => clearInterval(interval);
-    }, []);
+  // Draw chart when data changes
+  useEffect(() => {
+    drawChart();
+    
+    const handleResize = () => drawChart();
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [candles]);
 
-    useEffect(() => {
-      const canvas = canvasRef.current;
-      if (!canvas || candles.length === 0) return;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-
-      // Clear canvas
-      ctx.fillStyle = '#0a0a0a';
-      ctx.fillRect(0, 0, rect.width, rect.height);
-
-      // Calculate scales
-      const padding = 50;
-      const chartWidth = rect.width - padding * 2;
-      const chartHeight = rect.height - padding * 2;
-      
-      const minPrice = Math.min(...candles.map(c => c.low));
-      const maxPrice = Math.max(...candles.map(c => c.high));
-      const priceRange = maxPrice - minPrice || 1;
-
-      // Draw candles
-      const candleWidth = Math.max(2, chartWidth / candles.length * 0.8);
-      candles.forEach((candle, i) => {
-        const x = padding + (i / candles.length) * chartWidth + candleWidth / 2;
-        const openY = padding + (1 - (candle.open - minPrice) / priceRange) * chartHeight;
-        const closeY = padding + (1 - (candle.close - minPrice) / priceRange) * chartHeight;
-        const highY = padding + (1 - (candle.high - minPrice) / priceRange) * chartHeight;
-        const lowY = padding + (1 - (candle.low - minPrice) / priceRange) * chartHeight;
-
-        const color = candle.close >= candle.open ? '#0ECB81' : '#F6465D';
-        
-        // Draw wick
-        ctx.strokeStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(x, highY);
-        ctx.lineTo(x, lowY);
-        ctx.stroke();
-
-        // Draw body
-        ctx.fillStyle = color;
-        ctx.fillRect(x - candleWidth / 2, Math.min(openY, closeY), candleWidth, Math.abs(closeY - openY) || 1);
-      });
-    }, [candles]);
-
-    return <canvas ref={canvasRef} className="w-full h-full" />;
+  // Handle mouse move for tooltips
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || candles.length === 0) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const padding = { left: 10, right: 60 };
+    const chartWidth = rect.width - padding.left - padding.right;
+    const candleSpacing = chartWidth / candles.length;
+    
+    const index = Math.floor((x - padding.left) / candleSpacing);
+    if (index >= 0 && index < candles.length) {
+      setHoveredCandle(index);
+    } else {
+      setHoveredCandle(null);
+    }
   };
 
   return (
@@ -341,24 +271,17 @@ export function PumpFunChart({ tokenAddress, symbol, className }: PumpFunChartPr
           
           {/* Timeframe selector */}
           <div className="flex gap-1">
-            {[
-              { label: '1m', value: '1' },
-              { label: '5m', value: '5' },
-              { label: '15m', value: '15' },
-              { label: '1h', value: '60' },
-              { label: '4h', value: '240' },
-              { label: '1d', value: '1D' }
-            ].map(({ label, value }) => (
+            {['1m', '5m', '15m', '1h', '4h', '1d'].map((tf) => (
               <button
-                key={value}
-                onClick={() => setTimeframe(value)}
+                key={tf}
+                onClick={() => setTimeframe(tf)}
                 className={`px-3 py-1 text-sm rounded transition-colors ${
-                  timeframe === value
+                  timeframe === tf
                     ? 'bg-green-500 text-black font-semibold'
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                 }`}
               >
-                {label}
+                {tf}
               </button>
             ))}
           </div>
@@ -384,7 +307,7 @@ export function PumpFunChart({ tokenAddress, symbol, className }: PumpFunChartPr
       </div>
       
       {/* Chart container */}
-      <div className="relative h-[500px]">
+      <div className="relative">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
             <div className="text-center">
@@ -393,24 +316,38 @@ export function PumpFunChart({ tokenAddress, symbol, className }: PumpFunChartPr
             </div>
           </div>
         )}
-        {typeof window !== 'undefined' && window.TradingView ? (
-          <div ref={containerRef} id={`tv_chart_${tokenAddress}`} className="w-full h-full" />
-        ) : (
-          <SimpleChartFallback />
+        
+        <canvas 
+          ref={canvasRef} 
+          className="w-full h-[500px] cursor-crosshair" 
+          style={{ imageRendering: 'crisp-edges' }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHoveredCandle(null)}
+        />
+        
+        {/* Tooltip */}
+        {hoveredCandle !== null && candles[hoveredCandle] && (
+          <div className="absolute top-2 left-2 bg-gray-900 border border-gray-700 rounded p-2 text-xs">
+            <div className="text-gray-400">
+              {new Date(candles[hoveredCandle].time * 1000).toLocaleString()}
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
+              <div>O: <span className="text-white">{formatPrice(candles[hoveredCandle].open)}</span></div>
+              <div>H: <span className="text-white">{formatPrice(candles[hoveredCandle].high)}</span></div>
+              <div>C: <span className="text-white">{formatPrice(candles[hoveredCandle].close)}</span></div>
+              <div>L: <span className="text-white">{formatPrice(candles[hoveredCandle].low)}</span></div>
+              <div className="col-span-2">
+                Vol: <span className="text-white">{formatVolume(candles[hoveredCandle].volume)} SOL</span>
+              </div>
+            </div>
+          </div>
         )}
       </div>
       
       {/* Footer info */}
       <div className="mt-2 text-xs text-gray-500 text-center">
-        Real-time data • Powered by DeGenie
+        Real-time data • Updates every 5s • Powered by DeGenie
       </div>
     </div>
   );
-}
-
-// Add global declaration
-declare global {
-  interface Window {
-    TradingView: any;
-  }
 }
