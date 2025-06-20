@@ -459,11 +459,12 @@ app.post('/api/tokens/:tokenAddress/buy', async (req, res) => {
       account: walletAddress,
       solAmount: parseFloat(solAmount),
       tokenAmount: netTokensOut,
-      price: newPrice,
+      price: averagePrice, // Use average execution price for accurate chart updates
       timestamp: Date.now(),
       signature: txSignature,
       newPrice: newPrice,
-      graduationProgress
+      graduationProgress,
+      solRaisedAfter: newSolRaised
     });
     
     console.log(`✅ [Buy] Trade executed: ${netTokensOut.toFixed(2)} tokens for ${solAmount} SOL`);
@@ -555,11 +556,12 @@ app.post('/api/tokens/:tokenAddress/sell', async (req, res) => {
       account: walletAddress,
       solAmount: netSolOut,
       tokenAmount: parseFloat(tokenAmount),
-      price: newPrice,
+      price: averagePrice, // Use average execution price for accurate chart updates
       timestamp: Date.now(),
       signature: txSignature,
       newPrice: newPrice,
-      graduationProgress
+      graduationProgress,
+      solRaisedAfter: newSolRaised
     });
     
     console.log(`✅ [Sell] Trade executed: ${tokenAmount} tokens for ${netSolOut.toFixed(6)} SOL`);
@@ -1321,7 +1323,7 @@ app.get('/api/tokens/:tokenAddress/metrics', async (req, res) => {
   }
 });
 
-// Get chart data for TradingView
+// Get chart data for TradingView with gap filling
 app.get('/api/tokens/:tokenAddress/chart', async (req, res) => {
   try {
     const { tokenAddress } = req.params;
@@ -1346,30 +1348,80 @@ app.get('/api/tokens/:tokenAddress/chart', async (req, res) => {
       parseInt(limit as string)
     );
     
-    // If no trades, return current price as single candle
+    // Get current price
+    const currentSolRaised = tradeStorage.getSolRaised(tokenAddress);
+    const currentPrice = PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+    
+    // If no trades, return synthetic candles showing initial price
     if (ohlcvData.length === 0) {
-      const currentSolRaised = tradeStorage.getSolRaised(tokenAddress);
-      const currentPrice = PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
       const now = Math.floor(Date.now() / 1000);
+      const candleTime = Math.floor(now / intervalSeconds) * intervalSeconds;
+      const limitNum = parseInt(limit as string);
+      const syntheticCandles = [];
       
-      res.json({
-        success: true,
-        data: [{
-          time: now,
+      // Generate flat candles for the requested period
+      for (let i = limitNum - 1; i >= 0; i--) {
+        const time = candleTime - (i * intervalSeconds);
+        syntheticCandles.push({
+          time,
           open: currentPrice,
           high: currentPrice,
           low: currentPrice,
           close: currentPrice,
           volume: 0
-        }],
-        currentPrice
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: syntheticCandles,
+        currentPrice,
+        message: 'No trades yet - showing initial price'
       });
       return;
     }
     
+    // Fill gaps between real candles
+    const filledData: any[] = [];
+    let lastPrice = ohlcvData[0].open;
+    
+    // Generate continuous candles, filling gaps
+    const now = Math.floor(Date.now() / 1000);
+    const startTime = now - (parseInt(limit as string) * intervalSeconds);
+    const endTime = Math.floor(now / intervalSeconds) * intervalSeconds;
+    
+    for (let time = Math.floor(startTime / intervalSeconds) * intervalSeconds; time <= endTime; time += intervalSeconds) {
+      // Find real candle for this time
+      const realCandle = ohlcvData.find(c => c.time === time);
+      
+      if (realCandle) {
+        // Use real candle data
+        filledData.push(realCandle);
+        lastPrice = realCandle.close;
+      } else {
+        // Create synthetic candle with last known price
+        filledData.push({
+          time,
+          open: lastPrice,
+          high: lastPrice,
+          low: lastPrice,
+          close: lastPrice,
+          volume: 0
+        });
+      }
+    }
+    
+    // Ensure we return the requested number of candles
+    const trimmedData = filledData.slice(-parseInt(limit as string));
+    
+    console.log(`📊 [Chart Data] Returning ${trimmedData.length} candles (${ohlcvData.length} real, ${trimmedData.length - ohlcvData.length} synthetic)`);
+    
     res.json({
       success: true,
-      data: ohlcvData
+      data: trimmedData,
+      currentPrice,
+      realCandleCount: ohlcvData.length,
+      syntheticCandleCount: trimmedData.length - ohlcvData.length
     });
   } catch (error: any) {
     console.error('❌ [Chart Data] Error:', error);

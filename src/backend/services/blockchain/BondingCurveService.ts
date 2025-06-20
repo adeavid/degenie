@@ -543,20 +543,32 @@ export class BondingCurveService {
    * Get real-time token metrics
    */
   async getTokenMetrics(tokenAddress: string) {
-    const state = await this.getBondingCurveState(tokenAddress);
-    if (!state) return null;
+    // Import dependencies to avoid circular imports
+    const { tradeStorage } = await import('../shared');
+    const { PumpFunBondingCurve } = await import('./PumpFunBondingCurve');
+    
+    // Get current SOL raised from trade storage (single source of truth)
+    const currentSolRaised = tradeStorage.getSolRaised(tokenAddress) || 0;
+    const currentPrice = PumpFunBondingCurve.getCurrentPrice(currentSolRaised);
+    const graduationProgress = PumpFunBondingCurve.getGraduationProgress(currentSolRaised);
+    const marketCap = PumpFunBondingCurve.getMarketCap(currentSolRaised);
+    
+    // Get 24h metrics from trade storage
+    const volume24h = tradeStorage.get24hVolume(tokenAddress);
+    const priceChange = tradeStorage.get24hPriceChange(tokenAddress);
+    const holders = tradeStorage.getHolderCount(tokenAddress);
     
     return {
-      currentPrice: state.currentPrice.toNumber() / LAMPORTS_PER_SOL,
-      marketCap: (state.totalSupply.toNumber() / LAMPORTS_PER_TOKEN) * (state.currentPrice.toNumber() / LAMPORTS_PER_SOL),
-      totalSupply: state.totalSupply.toNumber() / LAMPORTS_PER_TOKEN,
-      maxSupply: state.maxSupply.toNumber() / LAMPORTS_PER_TOKEN,
-      volume24h: state.totalVolume.toNumber() / LAMPORTS_PER_SOL,
-      liquiditySOL: state.treasuryBalance.toNumber() / LAMPORTS_PER_SOL,
-      bondingCurveProgress: state.bondingCurveProgress,
-      isGraduated: state.isGraduated,
-      priceChange24h: 15.5, // Mock data - would calculate from price history
-      holders: 127 // Mock data - would fetch from chain
+      currentPrice,
+      marketCap,
+      totalSupply: PumpFunBondingCurve.INITIAL_SUPPLY,
+      maxSupply: PumpFunBondingCurve.TOTAL_SUPPLY,
+      volume24h,
+      liquiditySOL: currentSolRaised,
+      bondingCurveProgress: graduationProgress,
+      isGraduated: graduationProgress >= 100,
+      priceChange24h: priceChange?.percentage || 0,
+      holders: holders || 1
     };
   }
 }

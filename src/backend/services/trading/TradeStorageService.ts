@@ -189,3 +189,6 @@ export class TradeStorageService extends EventEmitter {
     this.solRaised.delete(tokenAddress);
   }
 }
+
+// Export singleton instance
+export const tradeStorage = new TradeStorageService();

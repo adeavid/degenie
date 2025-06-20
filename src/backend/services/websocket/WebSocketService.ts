@@ -85,11 +85,30 @@ export class WebSocketService {
   broadcastTrade(tokenAddress: string, trade: any) {
     if (!this.io) return;
     
-    console.log(`📢 [WebSocket] Broadcasting trade for ${tokenAddress}`);
+    console.log(`📢 [WebSocket] Broadcasting trade for ${tokenAddress}`, {
+      type: trade.type,
+      price: trade.price,
+      amount: trade.solAmount
+    });
+    
+    // Ensure trade data has all required fields
+    const formattedTrade = {
+      id: trade.id,
+      type: trade.type,
+      account: trade.account,
+      price: trade.price,
+      solAmount: trade.solAmount,
+      tokenAmount: trade.tokenAmount,
+      timestamp: trade.timestamp,
+      signature: trade.signature,
+      newPrice: trade.newPrice,
+      graduationProgress: trade.graduationProgress,
+      solRaisedAfter: trade.solRaisedAfter || trade.solRaised,
+    };
     
     this.io.to(`token:${tokenAddress}`).emit('tradeUpdate', {
       tokenAddress,
-      trade,
+      trade: formattedTrade,
       timestamp: Date.now()
     });
   }
