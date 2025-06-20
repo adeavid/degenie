@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, HistogramData, Time, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, HistogramData, Time, LineData } from 'lightweight-charts';
+import { CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -11,10 +12,12 @@ import {
   Settings,
   BarChart3 as VolumeIcon,
   Activity,
-  Zap
+  Zap,
+  LineChart
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface CandleData extends CandlestickData {
   volume: number;
@@ -40,17 +43,129 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const ma20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ma50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const isMountedRef = useRef(true);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const candleBufferRef = useRef<Map<number, CandleData>>(new Map());
+  const currentCandleRef = useRef<CandleData | null>(null);
   
   const [selectedTimeframe, setSelectedTimeframe] = useState('5m');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
+  const [showMA, setShowMA] = useState(false);
   const [priceChange, setPriceChange] = useState({ change: 0, percentage: 0 });
   const [currentPrice, setCurrentPrice] = useState(0.000069);
   const [volume24h, setVolume24h] = useState(0);
-  const [hasData, setHasData] = useState(false); // Start with no data assumption
+  const [hasData, setHasData] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // WebSocket integration
+  const { subscribeToToken, unsubscribeFromToken, onTradeUpdate, connected } = useWebSocket();
+
+  // Get interval in seconds for the selected timeframe
+  const getIntervalSeconds = useCallback(() => {
+    const tf = timeframes.find(t => t.value === selectedTimeframe);
+    return (tf?.minutes || 5) * 60;
+  }, [selectedTimeframe]);
+
+  // Calculate candle time based on interval
+  const getCandleTime = useCallback((timestamp: number, intervalSeconds: number): number => {
+    return Math.floor(timestamp / intervalSeconds) * intervalSeconds;
+  }, []);
+
+  // Update or create candle from trade
+  const updateCandleFromTrade = useCallback((trade: any) => {
+    if (!candlestickSeriesRef.current || !volumeSeriesRef.current) return;
+
+    const intervalSeconds = getIntervalSeconds();
+    const candleTime = getCandleTime(Math.floor(trade.timestamp / 1000), intervalSeconds);
+    
+    // Get existing candle or create new one
+    const existingCandle = candleBufferRef.current.get(candleTime);
+    
+    if (existingCandle) {
+      // Update existing candle
+      existingCandle.high = Math.max(existingCandle.high, trade.price);
+      existingCandle.low = Math.min(existingCandle.low, trade.price);
+      existingCandle.close = trade.price;
+      existingCandle.volume += trade.solAmount;
+      
+      // Update chart
+      candlestickSeriesRef.current.update(existingCandle);
+      
+      // Update volume
+      volumeSeriesRef.current.update({
+        time: candleTime as Time,
+        value: existingCandle.volume,
+        color: existingCandle.close >= existingCandle.open ? '#00ff88' : '#ff3366'
+      });
+    } else {
+      // Create new candle
+      const newCandle: CandleData = {
+        time: candleTime as Time,
+        open: trade.price,
+        high: trade.price,
+        low: trade.price,
+        close: trade.price,
+        volume: trade.solAmount
+      };
+      
+      candleBufferRef.current.set(candleTime, newCandle);
+      candlestickSeriesRef.current.update(newCandle);
+      
+      // Add volume bar
+      volumeSeriesRef.current.update({
+        time: candleTime as Time,
+        value: trade.solAmount,
+        color: '#00ff88'
+      });
+    }
+    
+    // Update current price and stats
+    setCurrentPrice(trade.price);
+    currentCandleRef.current = candleBufferRef.current.get(candleTime) || null;
+    
+    // Update MA if enabled
+    if (showMA) {
+      updateMovingAverages();
+    }
+  }, [getIntervalSeconds, getCandleTime, showMA]);
+
+  // Calculate moving averages
+  const updateMovingAverages = useCallback(() => {
+    if (!ma20SeriesRef.current || !ma50SeriesRef.current) return;
+    
+    const candles = Array.from(candleBufferRef.current.values()).sort((a, b) => 
+      (a.time as number) - (b.time as number)
+    );
+    
+    if (candles.length < 20) return;
+    
+    // Calculate MA20
+    const ma20Data: LineData[] = [];
+    for (let i = 19; i < candles.length; i++) {
+      const sum = candles.slice(i - 19, i + 1).reduce((acc, c) => acc + c.close, 0);
+      ma20Data.push({
+        time: candles[i].time,
+        value: sum / 20
+      });
+    }
+    ma20SeriesRef.current.setData(ma20Data);
+    
+    // Calculate MA50 if enough data
+    if (candles.length >= 50) {
+      const ma50Data: LineData[] = [];
+      for (let i = 49; i < candles.length; i++) {
+        const sum = candles.slice(i - 49, i + 1).reduce((acc, c) => acc + c.close, 0);
+        ma50Data.push({
+          time: candles[i].time,
+          value: sum / 50
+        });
+      }
+      ma50SeriesRef.current.setData(ma50Data);
+    }
+  }, []);
 
   // Cleanup function
   useEffect(() => {
@@ -64,37 +179,6 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
     };
   }, []);
 
-  // Persistent chart data - maintains across re-renders
-  const chartDataRef = useRef<{
-    candleData: CandlestickData[];
-    volumeData: HistogramData[];
-    lastGenerated: number;
-  } | null>(null);
-
-  // Generate initial data for new tokens (only the current price candle)
-  const generateInitialData = useCallback((price: number = 0.000069) => {
-    const now = Math.floor(Date.now() / 1000);
-    const data: CandlestickData[] = [];
-    const volumeData: HistogramData[] = [];
-    
-    // Only show current price as a single candle (like pump.fun)
-    data.push({
-      time: now as Time,
-      open: price,
-      high: price,
-      low: price,
-      close: price
-    });
-    
-    volumeData.push({
-      time: now as Time,
-      value: 0,
-      color: '#00ff88'
-    });
-    
-    return { candleData: data, volumeData };
-  }, []);
-
   // Load chart data
   const loadChartData = useCallback(async () => {
     if (!isMountedRef.current || !candlestickSeriesRef.current || !chartRef.current) {
@@ -102,60 +186,97 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
     }
 
     try {
+      setIsLoading(true);
+      console.log('📊 [Chart] Loading data for:', tokenAddress, 'timeframe:', selectedTimeframe);
+      
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tokens/${tokenAddress}/chart?timeframe=${selectedTimeframe}&limit=100`
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tokens/${tokenAddress}/chart?timeframe=${selectedTimeframe}&limit=300`
       );
       
       if (!isMountedRef.current) return;
       
       const data = await response.json();
+      console.log('📊 [Chart] Received response:', {
+        success: data.success,
+        dataLength: data.data?.length,
+        currentPrice: data.currentPrice,
+        message: data.message
+      });
       
       if (!data.success || !data.data || data.data.length === 0) {
         // For new tokens with no trades, show single candle at current price
         console.log('📊 No trades yet, showing initial price candle');
         
-        // Get current price from token data or use initial price
         const currentTokenPrice = data.currentPrice || 0.000069;
-        const { candleData, volumeData } = generateInitialData(currentTokenPrice);
+        const now = Math.floor(Date.now() / 1000);
+        const intervalSeconds = getIntervalSeconds();
+        const candleTime = getCandleTime(now, intervalSeconds);
+        
+        console.log('📊 No trade data - creating initial candle:', {
+          currentPrice: currentTokenPrice,
+          candleTime,
+          now
+        });
+        
+        const initialCandle: CandleData = {
+          time: candleTime as Time,
+          open: currentTokenPrice,
+          high: currentTokenPrice,
+          low: currentTokenPrice,
+          close: currentTokenPrice,
+          volume: 0
+        };
+        
+        candleBufferRef.current.clear();
+        candleBufferRef.current.set(candleTime, initialCandle);
         
         if (candlestickSeriesRef.current && isMountedRef.current) {
-          try {
-            candlestickSeriesRef.current.setData(candleData);
-            
-            if (volumeSeriesRef.current && showVolume) {
-              volumeSeriesRef.current.setData(volumeData);
-            }
-            
-            // Update stats
-            setCurrentPrice(currentTokenPrice);
-            setPriceChange({ change: 0, percentage: 0 });
-            setVolume24h(0);
-            setHasData(false); // Show "New Token Alert" overlay
-          } catch (e) {
-            console.log('Chart update skipped - component unmounted');
+          candlestickSeriesRef.current.setData([initialCandle]);
+          
+          if (volumeSeriesRef.current && showVolume) {
+            volumeSeriesRef.current.setData([{
+              time: candleTime as Time,
+              value: 0,
+              color: '#00ff88'
+            }]);
           }
+          
+          setCurrentPrice(currentTokenPrice);
+          setPriceChange({ change: 0, percentage: 0 });
+          setVolume24h(0);
+          setHasData(false);
         }
+        setIsLoading(false);
         return;
       }
       
       const candles = data.data;
+      candleBufferRef.current.clear();
+      
+      console.log(`📊 Received ${candles.length} candles from backend`);
+      console.log('📊 Sample candle:', candles[0]);
+      
+      // Check if we have real trade data (not just synthetic)
+      const hasRealTrades = data.realCandleCount > 0 || candles.some(c => c.volume > 0);
+      console.log('📊 Has real trades:', hasRealTrades, 'realCandleCount:', data.realCandleCount);
+      setHasData(hasRealTrades);
+      
+      // Convert API data to chart format and populate buffer
       const candleData: CandlestickData[] = [];
       const volumeData: HistogramData[] = [];
       
-      console.log(`📊 Received ${candles.length} candles from backend`);
-      setHasData(candles.length > 0);
-      
-      // If no candles, the chart will show "New Token Alert"
-      
-      // Convert API data to chart format
       candles.forEach((candle: any) => {
-        candleData.push({
+        const candleObj: CandleData = {
           time: candle.time as Time,
           open: candle.open,
           high: candle.high,
           low: candle.low,
-          close: candle.close
-        });
+          close: candle.close,
+          volume: candle.volume
+        };
+        
+        candleBufferRef.current.set(candle.time, candleObj);
+        candleData.push(candleObj);
         
         volumeData.push({
           time: candle.time as Time,
@@ -166,59 +287,78 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
       
       // Update chart only if still mounted
       if (candlestickSeriesRef.current && isMountedRef.current) {
-        try {
-          candlestickSeriesRef.current.setData(candleData);
-          
-          if (volumeSeriesRef.current && showVolume) {
-            volumeSeriesRef.current.setData(volumeData);
-          }
-          
-          // Calculate stats
-          if (candleData.length > 0) {
-            const last = candleData[candleData.length - 1];
-            setCurrentPrice(last.close);
-            
-            // Calculate 24h change if we have enough data
-            if (candleData.length > 1) {
-              const first = candleData[0];
-              const change = last.close - first.open;
-              const percentage = (change / first.open) * 100;
-              setPriceChange({ change, percentage });
-            } else {
-              setPriceChange({ change: 0, percentage: 0 });
-            }
-            
-            setVolume24h(volumeData.reduce((sum, v) => sum + v.value, 0));
-          }
-          
-          // Fit content
-          if (chartRef.current && isMountedRef.current) {
-            chartRef.current.timeScale().fitContent();
-          }
-        } catch (e) {
-          console.log('Chart update skipped - chart disposed');
+        console.log('📊 [Chart] Updating chart with', candleData.length, 'candles');
+        candlestickSeriesRef.current.setData(candleData);
+        
+        if (volumeSeriesRef.current && showVolume) {
+          console.log('📊 [Chart] Updating volume with', volumeData.length, 'bars');
+          volumeSeriesRef.current.setData(volumeData);
         }
+        
+        // Calculate stats
+        if (candleData.length > 0) {
+          const last = candleData[candleData.length - 1];
+          setCurrentPrice(last.close);
+          currentCandleRef.current = candleBufferRef.current.get(last.time as number) || null;
+          
+          // Calculate 24h change if we have enough data
+          if (candleData.length > 1) {
+            const first = candleData[0];
+            const change = last.close - first.open;
+            const percentage = (change / first.open) * 100;
+            setPriceChange({ change, percentage });
+          } else {
+            setPriceChange({ change: 0, percentage: 0 });
+          }
+          
+          setVolume24h(volumeData.reduce((sum, v) => sum + v.value, 0));
+        }
+        
+        // Update MA if enabled
+        if (showMA) {
+          updateMovingAverages();
+        }
+        
+        // Fit content
+        if (chartRef.current && isMountedRef.current) {
+          chartRef.current.timeScale().fitContent();
+        }
+        
+        console.log('📊 [Chart] Chart update completed');
       }
+      
+      console.log('📊 [Chart] Setting loading to false');
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading chart data:', error);
       setHasData(false);
-      // Show single candle at current price on error
-      if (isMountedRef.current) {
-        const { candleData, volumeData } = generateInitialData(currentPrice);
-        
-        if (candlestickSeriesRef.current) {
-          try {
-            candlestickSeriesRef.current.setData(candleData);
-            if (volumeSeriesRef.current && showVolume) {
-              volumeSeriesRef.current.setData(volumeData);
-            }
-          } catch (e) {
-            console.log('Chart update skipped on error');
-          }
+      setIsLoading(false);
+      // Show initial price on error
+      const now = Math.floor(Date.now() / 1000);
+      const intervalSeconds = getIntervalSeconds();
+      const candleTime = getCandleTime(now, intervalSeconds);
+      
+      const errorCandle: CandleData = {
+        time: candleTime as Time,
+        open: 0.000069,
+        high: 0.000069,
+        low: 0.000069,
+        close: 0.000069,
+        volume: 0
+      };
+      
+      if (candlestickSeriesRef.current && isMountedRef.current) {
+        candlestickSeriesRef.current.setData([errorCandle]);
+        if (volumeSeriesRef.current && showVolume) {
+          volumeSeriesRef.current.setData([{
+            time: candleTime as Time,
+            value: 0,
+            color: '#00ff88'
+          }]);
         }
       }
     }
-  }, [tokenAddress, selectedTimeframe, showVolume, generateInitialData]);
+  }, [tokenAddress, selectedTimeframe, showVolume, showMA, getIntervalSeconds, getCandleTime, updateMovingAverages]);
 
   // Initialize chart
   useEffect(() => {
@@ -278,7 +418,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
         minBarSpacing: 4,
       },
       watermark: {
-        visible: false, // pump.fun doesn't use watermarks
+        visible: false,
       },
       handleScroll: {
         mouseWheel: true,
@@ -316,7 +456,7 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
     candlestickSeriesRef.current = candlestickSeries;
 
-    // Add volume series if enabled
+    // Add volume series
     if (showVolume) {
       const volumeSeries = chart.addSeries(HistogramSeries, {
         color: '#2d2d2d',
@@ -328,15 +468,48 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
       volumeSeriesRef.current = volumeSeries;
     }
 
+    // Add MA series if enabled
+    if (showMA) {
+      const ma20Series = chart.addSeries(LineSeries, {
+        color: '#2962FF',
+        lineWidth: 2,
+        priceFormat: {
+          type: 'price',
+          precision: 9,
+          minMove: 0.000000001,
+        },
+        title: 'MA20',
+      });
+      ma20SeriesRef.current = ma20Series;
+
+      const ma50Series = chart.addSeries(LineSeries, {
+        color: '#FF6D00',
+        lineWidth: 2,
+        priceFormat: {
+          type: 'price',
+          precision: 9,
+          minMove: 0.000000001,
+        },
+        title: 'MA50',
+      });
+      ma50SeriesRef.current = ma50Series;
+    }
+
     // Load initial data
     loadChartData();
 
-    // Set up auto-update interval (less frequent, like real trading charts)
+    // Subscribe to WebSocket updates
+    if (connected) {
+      subscribeToToken(tokenAddress);
+    }
+
+    // Set up auto-update interval (more frequent for testing)
     updateIntervalRef.current = setInterval(() => {
       if (isMountedRef.current) {
+        console.log('📊 [Chart] Auto-refreshing chart data...');
         loadChartData();
       }
-    }, 5000); // Update every 5 seconds for real-time data
+    }, 5000); // Refresh every 5 seconds for better real-time updates
 
     // Handle resize
     const handleResize = () => {
@@ -360,6 +533,10 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
         updateIntervalRef.current = null;
       }
       
+      if (connected && tokenAddress) {
+        unsubscribeFromToken(tokenAddress);
+      }
+      
       if (chart) {
         try {
           chart.remove();
@@ -371,8 +548,30 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
       chartRef.current = null;
       candlestickSeriesRef.current = null;
       volumeSeriesRef.current = null;
+      ma20SeriesRef.current = null;
+      ma50SeriesRef.current = null;
+      candleBufferRef.current.clear();
     };
-  }, [tokenAddress, selectedTimeframe, isFullscreen, showVolume, symbol, loadChartData]);
+  }, [tokenAddress, selectedTimeframe, isFullscreen, showVolume, showMA, symbol, loadChartData, connected, subscribeToToken, unsubscribeFromToken]);
+
+  // Subscribe to trade updates
+  useEffect(() => {
+    if (!connected) {
+      console.log('📊 [Chart] WebSocket not connected, skipping trade updates');
+      return;
+    }
+
+    console.log('📊 [Chart] Subscribing to trade updates for:', tokenAddress);
+    const cleanup = onTradeUpdate((update) => {
+      console.log('📊 [Chart] Received trade update for token:', update.tokenAddress);
+      if (update.tokenAddress === tokenAddress) {
+        console.log('📊 [Chart] Processing trade update for our token:', update);
+        updateCandleFromTrade(update.trade);
+      }
+    });
+
+    return cleanup;
+  }, [connected, tokenAddress, onTradeUpdate, updateCandleFromTrade]);
 
   const formatPrice = (price: number) => {
     if (price < 0.000001) {
@@ -382,12 +581,17 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
   };
 
   const formatVolume = (volume: number) => {
+    if (volume > 1000000) return `${(volume / 1000000).toFixed(2)}M`;
     if (volume > 1000) return `${(volume / 1000).toFixed(1)}K`;
     return volume.toFixed(3);
   };
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
+  };
+
+  const toggleMA = () => {
+    setShowMA(!showMA);
   };
 
   return (
@@ -425,6 +629,12 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
               <div className="flex items-center space-x-4 text-sm text-gray-400 mt-1">
                 <span>Vol: ${formatVolume(volume24h)}</span>
                 <span>24h: {priceChange.change > 0 ? '+' : ''}{formatPrice(priceChange.change)}</span>
+                {connected && (
+                  <span className="flex items-center gap-1 text-xs text-[#00ff88]">
+                    <div className="w-1.5 h-1.5 bg-[#00ff88] rounded-full animate-pulse" />
+                    LIVE
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -452,6 +662,17 @@ export function TradingViewChart({ tokenAddress, symbol, className }: TradingVie
 
         {/* Controls */}
         <div className="flex items-center space-x-2">
+          <Button
+            onClick={toggleMA}
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "text-gray-400",
+              showMA && "text-green-400"
+            )}
+          >
+            <LineChart className="w-4 h-4" />
+          </Button>
           <Button
             onClick={() => setShowVolume(!showVolume)}
             variant="ghost"

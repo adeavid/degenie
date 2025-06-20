@@ -407,13 +407,15 @@ class ApiService {
     // Prepare the payload based on trade type
     const payload = params.type === 'buy' ? {
       walletAddress: params.walletAddress,
-      solAmount: params.solAmount?.toString(),
+      solAmount: params.solAmount,  // Keep as number, not string
       slippage: params.slippage
     } : {
       walletAddress: params.walletAddress,
-      tokenAmount: params.tokenAmount?.toString(),
+      tokenAmount: params.tokenAmount,  // Keep as number, not string
       slippage: params.slippage
     };
+    
+    console.log('🚀 [API] Executing trade:', { endpoint, payload });
     
     return this.makeRequest(endpoint, {
       method: 'POST',

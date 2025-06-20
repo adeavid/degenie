@@ -105,6 +105,7 @@ export function useWebSocket() {
     if (!socket) return;
 
     socket.on('tradeUpdate', (update: TradeUpdate) => {
+      console.log('🔌 [WebSocket] Received trade update:', update);
       setLastUpdate(Date.now());
       callback(update);
     });

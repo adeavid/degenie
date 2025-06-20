@@ -125,16 +125,22 @@ export function EnhancedTradingInterface({ tokenData, onTradeComplete }: Enhance
     setIsTrading(true);
 
     try {
-      const response = await apiService.executeTrade({
+      const tradeParams = {
         tokenAddress: tokenData.address,
         type: tradeType,
         solAmount: solAmount ? parseFloat(solAmount) : undefined,
         tokenAmount: tokenAmount ? parseFloat(tokenAmount) : undefined,
         slippage,
         walletAddress: publicKey?.toString() || ''
-      });
+      };
+      
+      console.log('🚀 [Trade] Executing trade with params:', tradeParams);
+      
+      const response = await apiService.executeTrade(tradeParams);
+      
+      console.log('🚀 [Trade] Raw response:', response);
 
-      if (response.data && response.data) {
+      if (response.success && response.data) {
         const tradeData = response.data;
         toast.success(`${tradeType === 'buy' ? 'Bought' : 'Sold'} successfully! 
           ${tradeType === 'buy' ? `Got ${tradeData.tokenAmount?.toFixed(2)} tokens` : `Got ${tradeData.solAmount?.toFixed(6)} SOL`}`);

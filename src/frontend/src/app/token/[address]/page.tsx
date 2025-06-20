@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/Input';
 import { Progress } from '@/components/ui/Progress';
 import { cn, formatNumber, formatPrice, formatAddress, getTimeAgo } from '@/lib/utils';
 import { apiService } from '@/lib/api';
-import { PumpFunChart } from '@/components/PumpFunChart';
+import { TradingViewChart } from '@/components/TradingViewChart';
 import { EnhancedTradingInterface } from '@/components/EnhancedTradingInterface';
 import { CommentsSection } from '@/components/CommentsSection';
 import { TradesTable } from '@/components/TradesTable';
@@ -470,11 +470,11 @@ export default function TokenPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Column - Chart & Activity */}
           <div className="lg:col-span-3 space-y-6">
-            {/* PumpFun Chart - Clean and simple like PooCoin */}
-            <PumpFunChart 
-              tokenAddress={tokenAddress} 
+            {/* Real Token Chart with Live Data */}
+            <TradingViewChart 
               symbol={tokenData.symbol}
-              className=""
+              tokenAddress={tokenAddress}
+              className="mb-6"
             />
 
             {/* Enhanced Activity Tabs */}
