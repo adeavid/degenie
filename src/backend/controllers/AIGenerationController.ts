@@ -63,7 +63,10 @@ export class AIGenerationController {
       res.status(200).json({
         success: true,
         data: {
-          ...result,
+          id: result.id,
+          url: result.url,
+          ipfsHash: result.ipfsHash,
+          metadata: result.metadata,
           processingTime,
           creditsRemaining: creditBalance - requiredCredits,
         }

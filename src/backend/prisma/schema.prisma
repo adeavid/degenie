@@ -6,195 +6,283 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// User model
 model User {
-  id                String      @id @default(cuid())
-  walletAddress     String      @unique
-  email             String?     @unique
-  username          String?     @unique
-  credits           Float       @default(3.0)
-  tier              String      @default("free") // free, starter, viral
+  id           String   @id @default(cuid())
+  walletAddress String  @unique
+  email        String?  @unique
+  credits      Float    @default(10.0)
+  tier         String   @default("free")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  lastLoginAt       DateTime?
-  
-  tokens            Token[]
-  generations       Generation[]
-  transactions      CreditTransaction[]
-  subscription      Subscription?
-  referralCode      String      @unique @default(cuid())
-  referredBy        String?
-  referrals         User[]      @relation("UserReferrals")
-  referrer          User?       @relation("UserReferrals", fields: [referredBy], references: [id])
-  achievements      Achievement[]
-  
-  @@index([walletAddress])
-  @@index([email])
-  @@index([tier])
+  tokens       Token[]
+  trades       Trade[]
+  comments     Comment[]
+  watchlist    Watchlist[]
 }
 
+// Token model - represents created tokens
 model Token {
-  id                String      @id @default(cuid())
-  address           String      @unique
-  chain             String      // solana, base, arbitrum, etc
-  name              String
-  symbol            String
-  description       String?
+  address          String   @id // Token mint address
+  name             String
+  symbol           String
+  description      String?
+  logoUrl          String?
+  website          String?
+  twitter          String?
+  telegram         String?
   
-  creatorId         String
-  creator           User        @relation(fields: [creatorId], references: [id])
+  creator          User     @relation(fields: [creatorId], references: [id])
+  creatorId        String
   
-  logoUrl           String?
-  logoIpfsHash      String?
+  totalSupply      BigInt
+  decimals         Int      @default(6)
   
-  totalSupply       String  // BigInt as string for SQLite
-  decimals          Int
+  // Bonding curve data
+  bondingCurveAddress String?
+  currentPrice     Float    @default(0.000069)
+  treasuryBalance  Float    @default(0)
+  totalVolume      Float    @default(0)
+  bondingProgress  Float    @default(0)
+  isGraduated      Boolean  @default(false)
+  graduatedAt      DateTime?
   
-  marketCap         Float?      @default(0)
-  liquidity         Float?      @default(0)
-  holders           Int         @default(0)
+  // Stats
+  marketCap        Float    @default(0)
+  volume24h        Float    @default(0)
+  priceChange24h   Float    @default(0)
+  holdersCount     Int      @default(0)
   
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  launchedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   
-  generations       Generation[]
-  milestones        TokenMilestone[]
-  analytics         TokenAnalytics[]
-  
-  @@index([creatorId])
-  @@index([chain])
-  @@index([marketCap])
+  trades           Trade[]
+  candles1m        Candle1m[]
+  candles5m        Candle5m[]
+  candles15m       Candle15m[]
+  candles1h        Candle1h[]
+  candles4h        Candle4h[]
+  candles1d        Candle1d[]
+  comments         Comment[]
+  watchlist        Watchlist[]
+  holders          Holder[]
 }
 
-model Generation {
-  id                String      @id @default(cuid())
-  userId            String
-  user              User        @relation(fields: [userId], references: [id])
+// Trade model - on-chain trades
+model Trade {
+  id               String   @id @default(cuid())
+  signature        String   @unique // Solana transaction signature
   
-  tokenId           String?
-  token             Token?      @relation(fields: [tokenId], references: [id])
+  token            Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress     String
   
-  type              String      // logo, meme, gif
-  prompt            String
-  optimizedPrompt   String
+  trader           User     @relation(fields: [traderId], references: [id])
+  traderId         String
   
-  provider          String      // together, replicate
-  model             String
+  type             TradeType
+  solAmount        Float
+  tokenAmount      Float
+  price            Float
   
-  resultUrl         String
-  ipfsHash          String?
+  // Fees
+  platformFee      Float
+  creatorFee       Float
   
-  creditCost        Float
-  processingTime    Int         // milliseconds
+  // State after trade
+  newPrice         Float
+  newSupply        Float
+  bondingProgress  Float
   
-  metadata          String? // JSON as string for SQLite
+  blockTime        DateTime
+  createdAt        DateTime @default(now())
   
-  createdAt         DateTime    @default(now())
-  
-  @@index([userId])
-  @@index([tokenId])
-  @@index([type])
+  @@index([tokenAddress, blockTime])
+  @@index([traderId])
 }
 
+enum TradeType {
+  BUY
+  SELL
+}
+
+// Candle models for different timeframes
+model Candle1m {
+  id          String   @id @default(cuid())
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  time        DateTime @db.Timestamp(0)
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      Float
+  trades      Int
+  
+  @@unique([tokenAddress, time])
+  @@index([tokenAddress, time])
+}
+
+model Candle5m {
+  id          String   @id @default(cuid())
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  time        DateTime @db.Timestamp(0)
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      Float
+  trades      Int
+  
+  @@unique([tokenAddress, time])
+  @@index([tokenAddress, time])
+}
+
+model Candle15m {
+  id          String   @id @default(cuid())
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  time        DateTime @db.Timestamp(0)
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      Float
+  trades      Int
+  
+  @@unique([tokenAddress, time])
+  @@index([tokenAddress, time])
+}
+
+model Candle1h {
+  id          String   @id @default(cuid())
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  time        DateTime @db.Timestamp(0)
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      Float
+  trades      Int
+  
+  @@unique([tokenAddress, time])
+  @@index([tokenAddress, time])
+}
+
+model Candle4h {
+  id          String   @id @default(cuid())
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  time        DateTime @db.Timestamp(0)
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      Float
+  trades      Int
+  
+  @@unique([tokenAddress, time])
+  @@index([tokenAddress, time])
+}
+
+model Candle1d {
+  id          String   @id @default(cuid())
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  time        DateTime @db.Timestamp(0)
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      Float
+  trades      Int
+  
+  @@unique([tokenAddress, time])
+  @@index([tokenAddress, time])
+}
+
+// Comment model
+model Comment {
+  id          String   @id @default(cuid())
+  content     String
+  
+  author      User     @relation(fields: [authorId], references: [id])
+  authorId    String
+  
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  parent      Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  parentId    String?
+  replies     Comment[] @relation("CommentReplies")
+  
+  likes       Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([tokenAddress])
+  @@index([authorId])
+}
+
+// Watchlist model
+model Watchlist {
+  id          String   @id @default(cuid())
+  
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([userId, tokenAddress])
+}
+
+// Holder model - token holders
+model Holder {
+  id          String   @id @default(cuid())
+  
+  token       Token    @relation(fields: [tokenAddress], references: [address])
+  tokenAddress String
+  
+  walletAddress String
+  balance      BigInt
+  percentage   Float
+  
+  firstBuyAt   DateTime
+  lastUpdateAt DateTime @default(now())
+  
+  @@unique([tokenAddress, walletAddress])
+  @@index([tokenAddress, balance])
+}
+
+// Credit transaction model
 model CreditTransaction {
-  id                String      @id @default(cuid())
-  userId            String
-  user              User        @relation(fields: [userId], references: [id])
-  
-  amount            Float       // negative for spending, positive for earning
-  type              String      // earn, spend, refund
-  reason            String
-  
-  metadata          String? // JSON as string for SQLite
-  
-  balanceBefore     Float
-  balanceAfter      Float
-  
-  timestamp         DateTime    @default(now())
-  
-  @@index([userId])
-  @@index([type])
-  @@index([timestamp])
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Float
+  type        CreditTransactionType
+  description String
+  createdAt   DateTime @default(now())
 }
 
-model Subscription {
-  id                String      @id @default(cuid())
-  userId            String      @unique
-  user              User        @relation(fields: [userId], references: [id])
-  
-  tier              String      // starter, viral
-  status            String      // active, cancelled, expired
-  
-  priceUSD          Float
-  priceCrypto       Float?
-  paymentMethod     String      // card, crypto
-  paymentTxHash     String?
-  
-  startedAt         DateTime    @default(now())
-  expiresAt         DateTime
-  cancelledAt       DateTime?
-  
-  autoRenew         Boolean     @default(true)
-  
-  @@index([status])
-  @@index([expiresAt])
-}
-
-model TokenMilestone {
-  id                String      @id @default(cuid())
-  tokenId           String
-  token             Token       @relation(fields: [tokenId], references: [id])
-  
-  milestone         String      // 10k_mcap, 100k_mcap, 1m_mcap
-  achievedAt        DateTime    @default(now())
-  
-  rewardCredits     Float
-  rewardClaimed     Boolean     @default(false)
-  
-  @@unique([tokenId, milestone])
-  @@index([tokenId])
-}
-
-model Achievement {
-  id                String      @id @default(cuid())
-  userId            String
-  user              User        @relation(fields: [userId], references: [id])
-  
-  name              String      // credit_novice, meme_master, etc
-  category          String      // credits, generation, community
-  
-  unlockedAt        DateTime    @default(now())
-  rewardCredits     Float       @default(0)
-  
-  metadata          String? // JSON as string for SQLite
-  
-  @@unique([userId, name])
-  @@index([userId])
-  @@index([category])
-}
-
-model TokenAnalytics {
-  id                String      @id @default(cuid())
-  tokenId           String
-  token             Token       @relation(fields: [tokenId], references: [id])
-  
-  timestamp         DateTime    @default(now())
-  
-  price             Float
-  volume24h         Float
-  marketCap         Float
-  liquidity         Float
-  holders           Int
-  
-  socialScore       Float?      // calculated virality score
-  twitterMentions   Int?
-  telegramMembers   Int?
-  
-  @@index([tokenId])
-  @@index([timestamp])
+enum CreditTransactionType {
+  PURCHASE
+  EARNED
+  SPENT
+  REFUND
 }

@@ -7,7 +7,7 @@ const router = Router();
 
 // Validation schemas
 const walletLoginSchema = z.object({
-  walletAddress: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
+  walletAddress: z.string().min(32), // Accept both Ethereum (42 chars) and Solana (32-44 chars)
   signature: z.string().optional(), // For future signature verification
   referralCode: z.string().optional(),
 });
@@ -18,7 +18,7 @@ const emailLoginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  walletAddress: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
+  walletAddress: z.string().min(32), // Accept both Ethereum and Solana addresses
   email: z.string().email().optional(),
   username: z.string().min(3).max(30).optional(),
   referralCode: z.string().optional(),

@@ -1,21 +1,12 @@
 'use client';
 
-import React, { ReactNode, useMemo, useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import React, { ReactNode, useEffect, useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react';
 import { wagmiConfig } from '@/lib/wagmi';
-import { endpoint, wallets } from '@/lib/solana-wallets';
 
-// Dynamically import WalletModalProvider to avoid SSR issues
-const WalletModalProvider = dynamic(
-  () => import('@solana/wallet-adapter-react-ui').then(mod => mod.WalletModalProvider),
-  { ssr: false }
-);
-
-// Import Solana wallet adapter styles
-import '@solana/wallet-adapter-react-ui/styles.css';
+// Note: Solana wallet adapter disabled in favor of direct window.solana access
+// This prevents service worker conflicts with Phantom extension
 
 interface WalletProviderProps {
   children: ReactNode;
@@ -31,8 +22,6 @@ export function WalletProvider({ children }: WalletProviderProps) {
       },
     },
   }));
-  
-  const solanaWallets = useMemo(() => wallets, []);
 
   useEffect(() => {
     setMounted(true);
@@ -46,13 +35,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={wagmiConfig}>
-        <ConnectionProvider endpoint={endpoint}>
-          <SolanaWalletProvider wallets={solanaWallets} autoConnect={false}>
-            <WalletModalProvider>
-              {children}
-            </WalletModalProvider>
-          </SolanaWalletProvider>
-        </ConnectionProvider>
+        {children}
       </WagmiProvider>
     </QueryClientProvider>
   );

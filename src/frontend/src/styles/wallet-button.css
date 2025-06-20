@@ -1,0 +1,20 @@
+/* Custom styles for WalletConnectButtonV2 */
+.wallet-button-wrapper button {
+  @apply bg-gradient-to-r from-purple-600 to-pink-600 !important;
+  @apply border-0 !important;
+  @apply rounded-lg !important;
+  @apply text-white !important;
+  @apply font-medium !important;
+  @apply px-4 py-2 !important;
+  @apply hover:from-purple-700 hover:to-pink-700 !important;
+  @apply transition-all duration-200 !important;
+  @apply shadow-lg shadow-purple-500/25 !important;
+}
+
+.wallet-button-wrapper button:hover {
+  @apply transform scale-105 !important;
+}
+
+.wallet-button-wrapper button:active {
+  @apply transform scale-95 !important;
+}
